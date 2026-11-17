@@ -1,0 +1,3423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#08080c">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="description" content="A private, real-time Senior Assassin target tracker. Assignments, PINs, and eliminations are shared through Supabase.">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'; object-src 'none'; connect-src https://*.supabase.co wss://*.supabase.co">
+<title>Senior Assassin</title>
+<style>
+/* =========================================================
+   SENIOR ASSASSIN — Supabase realtime edition
+   Single HTML file. Shared state lives in Supabase.
+   ========================================================= */
+:root{
+  color-scheme:dark;
+  --bg:#07070b; --panel:#111118; --panel-2:#0b0b11; --line:#242432; --line-2:#333345;
+  --ink:#ececf2; --muted:#9b9bad; --dim:#71718a;
+  --blood:#e11d48; --blood-2:#be123c; --blood-3:#fb7185;
+  --ok:#34d399; --warn:#fbbf24; --out:#7b7b8f;
+  --radius:18px; --shadow:0 24px 70px -34px rgba(0,0,0,.95);
+  --font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"Cascadia Code",Menlo,Consolas,monospace;
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{
+  margin:0; min-height:100vh; color:var(--ink); font-family:var(--font);
+  font-size:16px; line-height:1.55; overflow-x:hidden;
+  background:
+    radial-gradient(1000px 560px at 50% -10%,rgba(225,29,72,.15),transparent 62%),
+    radial-gradient(760px 520px at 105% 18%,rgba(225,29,72,.06),transparent 60%),
+    radial-gradient(900px 700px at -10% 100%,rgba(120,20,50,.08),transparent 65%),
+    var(--bg);
+}
+body::before{
+  content:""; position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.05;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/></filter><rect width='140' height='140' filter='url(%23n)'/></svg>");
+}
+body.modal-open{overflow:hidden}
+.wrap{position:relative; z-index:1; max-width:780px; margin:0 auto; padding:36px 18px 88px; padding-bottom:calc(88px + env(safe-area-inset-bottom))}
+.masthead{text-align:center; margin-bottom:26px}
+.eyebrow{font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.42em; color:var(--blood); text-transform:uppercase}
+.title{margin:8px 0 0; font-size:clamp(2rem,8vw,3.1rem); line-height:1.02; font-weight:900; letter-spacing:-.045em; color:#fff; text-shadow:0 0 30px rgba(225,29,72,.55)}
+.lede{margin:10px auto 0; max-width:34rem; color:var(--muted); font-size:14px}
+.tabs{display:flex; align-items:stretch; gap:2px; overflow-x:auto; scrollbar-width:none; border-bottom:1px solid var(--line); margin-bottom:20px}
+.tabs::-webkit-scrollbar{display:none}
+.tabs[hidden]{display:none}
+.tab{appearance:none; background:none; border:0; border-bottom:2px solid transparent; color:var(--dim); font:inherit; font-size:13.5px; font-weight:700; padding:12px 14px; cursor:pointer; white-space:nowrap; transition:color .15s,border-color .15s}
+.tab:hover{color:#d7d7e2}
+.tab[aria-current="page"]{color:#fff; border-bottom-color:var(--blood)}
+.tab:focus-visible{outline:2px solid var(--blood-3); outline-offset:-3px; border-radius:8px}
+.tab-spacer{flex:1}
+.tab-exit{appearance:none; background:none; border:0; color:var(--dim); font:inherit; font-size:12px; font-weight:600; padding:8px 6px 8px 14px; cursor:pointer; white-space:nowrap; align-self:center}
+.tab-exit:hover{color:var(--blood-3)}
+.card{background:linear-gradient(180deg,rgba(23,23,32,.94),rgba(13,13,19,.94)); border:1px solid var(--line); border-radius:var(--radius); padding:20px; box-shadow:var(--shadow)}
+.card + .card, .stack > * + *{margin-top:14px}
+.card-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px}
+.card h2{margin:0; font-size:18px; font-weight:800; color:#fff; letter-spacing:-.01em}
+.card h3{margin:0; font-size:15px; font-weight:800; color:#fff}
+.muted{margin:6px 0 0; color:var(--muted); font-size:13.5px}
+.hint{margin:10px 0 0; color:var(--dim); font-size:12px}
+.note{margin:18px auto 0; max-width:34rem; text-align:center; color:var(--dim); font-size:12px}
+.row{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+.row-start{display:flex; gap:8px; margin-top:16px}
+.row-start .input{flex:1; min-width:0}
+.grow{flex:1}
+.field{display:block; margin-top:16px}
+.label{display:block; margin-bottom:6px; color:var(--muted); font-size:12px; font-weight:600; letter-spacing:.02em}
+.input{width:100%; background:#0a0a10; border:1px solid #2b2b3a; color:var(--ink); border-radius:12px; padding:12px 14px; font:inherit; font-size:15px; outline:none; transition:border-color .15s,box-shadow .15s; min-height:46px}
+.input::placeholder{color:#5c5c70}
+.input:hover{border-color:#38384c}
+.input:focus{border-color:var(--blood); box-shadow:0 0 0 3px rgba(225,29,72,.17)}
+.input-group{display:flex; gap:8px; align-items:stretch}
+.input-group .input{flex:1; min-width:0}
+.input-group .btn{flex:none}
+.pin-input{font-family:var(--mono); letter-spacing:.28em}
+.code-input{font-family:var(--mono); letter-spacing:.14em; text-transform:uppercase}
+textarea.input{min-height:110px; resize:vertical; font-family:var(--mono); font-size:13px; letter-spacing:0}
+select.input{appearance:none; padding-right:40px; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5l5-5' fill='none' stroke='%239b9bad' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 15px center}
+input[type="file"]{position:absolute; width:1px; height:1px; opacity:0; pointer-events:none}
+.btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; border:1px solid transparent; border-radius:12px; padding:11px 16px; color:var(--ink); background:#16161f; font:inherit; font-size:14px; font-weight:700; line-height:1.2; cursor:pointer; text-decoration:none; white-space:nowrap; transition:transform .12s,background .15s,border-color .15s,color .15s}
+.btn:hover:not(:disabled){transform:translateY(-1px)}
+.btn:active:not(:disabled){transform:translateY(0)}
+.btn:focus-visible{outline:2px solid var(--blood-3); outline-offset:2px}
+.btn:disabled{opacity:.42; cursor:not-allowed; transform:none}
+.btn-primary{background:linear-gradient(180deg,#f43f5e,#e11d48); color:#fff; box-shadow:0 10px 28px -14px rgba(225,29,72,.95)}
+.btn-primary:hover:not(:disabled){background:linear-gradient(180deg,#fb7185,#e11d48)}
+.btn-ghost{background:#15151d; border-color:#2b2b3a; color:#d7d7e2}
+.btn-ghost:hover:not(:disabled){border-color:var(--blood); color:#fff}
+.btn-danger{background:#2a0f18; border-color:#7f1d2e; color:#fda4af}
+.btn-danger:hover:not(:disabled){background:#3a1220; border-color:#be123c; color:#fff}
+.btn-block{width:100%}
+.btn-sm{padding:7px 11px; font-size:12.5px; border-radius:9px}
+.mini{appearance:none; background:#16161f; border:1px solid #2b2b3a; border-radius:8px; color:#c7c7d4; font:inherit; font-size:11.5px; font-weight:600; padding:5px 9px; cursor:pointer}
+.mini:hover{border-color:var(--blood); color:#fff}
+.mini-danger:hover{border-color:#f43f5e; color:#fb7185}
+.link{appearance:none; background:none; border:0; color:var(--muted); font:inherit; font-size:12.5px; font-weight:600; padding:6px; cursor:pointer}
+.link:hover{color:#fff}
+.pill{display:inline-flex; align-items:center; gap:5px; padding:3px 8px; border:1px solid #2b2b3a; border-radius:999px; background:#0f0f16; color:var(--muted); font-size:11px; font-weight:700; letter-spacing:.02em; white-space:nowrap}
+.pill-ok{color:#6ee7b7; border-color:#14532d; background:#052e1f}
+.pill-warn{color:#fcd34d; border-color:#713f12; background:#2a1c04}
+.pill-out{color:#a1a1b5; border-color:#333345; background:#14141d}
+.pill-blood{color:#fda4af; border-color:#7f1d2e; background:#2a0f18}
+.pill-mono{font-family:var(--mono); font-weight:600}
+.dot{display:inline-block; flex:none; width:8px; height:8px; border-radius:50%; background:var(--out)}
+.dot-alive{background:var(--ok); box-shadow:0 0 8px rgba(52,211,153,.55)}
+.dot-waiting{background:var(--warn)}
+.dot-out{background:#4b4b5c}
+.stats{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:16px}
+.stat{background:#0b0b12; border:1px solid #20202d; border-radius:14px; padding:12px 8px; text-align:center}
+.stat b{display:block; color:#fff; font-size:22px; font-weight:900; line-height:1.15}
+.stat span{display:block; margin-top:2px; color:var(--muted); font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase}
+.list{list-style:none; margin:14px 0 0; padding:0; display:grid; gap:8px}
+.player-row{background:#0b0b12; border:1px solid #20202d; border-radius:12px; padding:10px 12px}
+.player-row.out{opacity:.72}
+.player-top{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.player-name{flex:1; min-width:110px; font-size:14px; font-weight:650; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.player-row.out .player-name{color:var(--dim); text-decoration:line-through}
+.you{display:inline-block; margin-left:6px; padding:1px 6px; border-radius:999px; background:#2a0f18; border:1px solid #7f1d2e; color:#fda4af; font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; vertical-align:1px}
+.actions{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
+.empty{margin:16px 0 0; padding:18px; border:1px dashed #2b2b3a; border-radius:12px; color:var(--dim); font-size:13px; text-align:center}
+.you-note{margin:14px 0 0; padding:10px 12px; border-radius:10px; background:#0b0b12; border:1px solid #20202d; color:var(--muted); font-size:12.5px}
+.callout{margin:14px 0 0; padding:11px 13px; border:1px solid #2b2b3a; border-radius:11px; background:#0d0d14; color:var(--muted); font-size:12.5px; line-height:1.5}
+.callout-ok{border-color:#14532d; background:#052015; color:#a7f3d0}
+.callout-warn{border-color:#713f12; background:#201503; color:#fde68a}
+.callout-danger{border-color:#7f1d2e; background:#250b13; color:#fecdd3}
+.secret-panel{margin-top:20px; padding:22px 18px; border:1px solid rgba(225,29,72,.6); border-radius:16px; background:linear-gradient(180deg,rgba(225,29,72,.16),rgba(225,29,72,.045)); text-align:center; box-shadow:0 0 50px -18px rgba(225,29,72,.8); animation:secret-in .18s ease-out}
+.secret-kicker{font-family:var(--mono); font-size:10.5px; font-weight:700; letter-spacing:.3em; color:var(--blood-3); text-transform:uppercase}
+.secret-name{margin-top:6px; color:#fff; font-size:clamp(1.9rem,7vw,2.7rem); font-weight:900; line-height:1.08; letter-spacing:-.03em; overflow-wrap:anywhere}
+.secret-sub{margin-top:6px; color:#fecdd3; font-size:12.5px}
+.secret-track{height:5px; margin-top:18px; border-radius:99px; background:#23232f; overflow:hidden}
+.secret-bar{height:100%; width:100%; background:linear-gradient(90deg,#fb7185,#e11d48); transform-origin:left center; border-radius:99px}
+.secret-foot{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:9px; color:var(--muted); font-family:var(--mono); font-size:11px}
+.secret-hide{appearance:none; background:none; border:0; color:#fecdd3; font:inherit; font-size:11px; font-weight:700; cursor:pointer; padding:4px 2px; text-decoration:underline; text-underline-offset:3px}
+.secret-hide:hover{color:#fff}
+.hidden-note{margin:18px 0 0; text-align:center; color:var(--dim); font-size:12px}
+.choice-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+.choice{appearance:none; text-align:left; cursor:pointer; font:inherit; color:var(--ink); transition:border-color .15s,transform .15s}
+.choice:hover{border-color:var(--blood); transform:translateY(-2px)}
+.choice:focus-visible{outline:2px solid var(--blood-3); outline-offset:2px}
+.choice-kicker{font-family:var(--mono); font-size:10px; font-weight:700; letter-spacing:.28em; color:var(--blood); text-transform:uppercase}
+.choice-kicker.open{color:var(--dim)}
+.choice-title{margin-top:4px; color:#fff; font-size:24px; font-weight:900; letter-spacing:-.02em}
+.choice-text{margin:6px 0 0; color:var(--muted); font-size:12.5px; line-height:1.5}
+.strip{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; padding:10px 13px; border:1px solid var(--line); border-radius:12px; background:rgba(13,13,19,.7); color:var(--muted); font-size:12px}
+.strip b{color:#fff}
+.strip .dot{margin-right:-3px}
+.feed{list-style:none; margin:14px 0 0; padding:0; display:grid; gap:8px}
+.feed-item{display:flex; align-items:flex-start; gap:9px; padding:8px 10px; border:1px solid #1d1d29; border-radius:10px; background:#0b0b12; font-size:12.5px; color:#c7c7d4}
+.feed-icon{flex:none; width:18px; text-align:center; color:var(--blood-3); font-size:12px; line-height:1.5}
+.feed-text{flex:1; min-width:0; overflow-wrap:anywhere}
+.feed-time{flex:none; color:var(--dim); font-family:var(--mono); font-size:10px; padding-top:2px}
+.feed-item.join .feed-icon{color:var(--ok)}
+.feed-item.host .feed-icon{color:var(--warn)}
+.feed-item.win .feed-icon{color:var(--warn)}
+.feed-item.round .feed-icon{color:var(--muted)}
+.winner{margin-top:16px; padding:18px; border:1px solid rgba(251,191,36,.45); border-radius:14px; background:linear-gradient(180deg,rgba(251,191,36,.12),rgba(251,191,36,.03)); text-align:center}
+.winner-kicker{font-family:var(--mono); font-size:10.5px; font-weight:700; letter-spacing:.3em; color:var(--warn); text-transform:uppercase}
+.winner-name{margin-top:4px; color:#fff; font-size:clamp(1.6rem,6vw,2.3rem); font-weight:900; line-height:1.1; letter-spacing:-.02em; overflow-wrap:anywhere}
+.round-clock{margin-top:14px; padding:14px; border:1px solid #242432; border-radius:14px; background:#0b0b12}
+.clock-top{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap}
+.clock-label{color:var(--muted); font-size:10.5px; font-weight:750; letter-spacing:.1em; text-transform:uppercase}
+.clock-left{margin-top:2px; color:#fff; font-size:21px; font-weight:900; line-height:1.2; letter-spacing:-.02em}
+.round-track{height:6px; margin-top:11px; border-radius:99px; background:#23232f; overflow:hidden}
+.round-track span{display:block; width:100%; height:100%; border-radius:99px; background:linear-gradient(90deg,#fb7185,#e11d48); transform-origin:left center; transition:transform .3s linear}
+.clock-meta{display:flex; flex-wrap:wrap; gap:5px 16px; margin-top:9px; color:var(--dim); font-size:11px}
+.clock-meta b{color:var(--muted); font-weight:650}
+.history{display:grid; gap:9px; margin-top:14px}
+.history-round{padding:11px 12px; border:1px solid #20202d; border-radius:12px; background:#0b0b12}
+.history-head{display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-wrap:wrap}
+.history-title{color:#fff; font-size:13px; font-weight:750}
+.history-meta{display:block; margin-top:3px; color:var(--dim); font-size:10.5px}
+.history-kills{list-style:none; margin:9px 0 0; padding:0; display:grid; gap:5px}
+.history-kills li{display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:6px 8px; border:1px solid #1d1d29; border-radius:8px; background:#09090e; color:#c7c7d4; font-size:11.5px}
+.history-kills time{flex:none; color:var(--dim); font-family:var(--mono); font-size:9.5px; white-space:nowrap}
+.round-live{font-variant-numeric:tabular-nums}
+.details-card{padding:0}
+.details-card > summary{list-style:none; cursor:pointer; padding:16px 20px; display:flex; align-items:center; gap:8px; color:#fff; font-size:14px; font-weight:750}
+.details-card > summary::-webkit-details-marker{display:none}
+.details-card > summary::after{content:"+"; margin-left:auto; color:var(--dim); font-family:var(--mono); font-size:16px}
+.details-card[open] > summary::after{content:"–"}
+.details-card .details-body{padding:0 20px 20px}
+.disclosure{margin-top:14px; border:1px solid #20202d; border-radius:12px; background:#0b0b12}
+.disclosure > summary{list-style:none; cursor:pointer; padding:11px 13px; color:var(--muted); font-size:12.5px; font-weight:650}
+.disclosure > summary::-webkit-details-marker{display:none}
+.disclosure > summary::after{content:" +"; color:var(--dim); font-family:var(--mono)}
+.disclosure[open] > summary::after{content:" –"}
+.disclosure .disclosure-body{padding:0 13px 13px}
+.audit{list-style:none; margin:12px 0 0; padding:0; display:grid; gap:5px}
+.audit li{display:flex; gap:8px; justify-content:space-between; padding:7px 9px; border-radius:8px; background:#0a0a10; color:var(--muted); font-size:11.5px}
+.audit time{flex:none; color:var(--dim); font-family:var(--mono); font-size:10px; white-space:nowrap}
+.codes{display:grid; gap:6px; margin:12px 0; padding:10px; border:1px solid #242432; border-radius:12px; background:#0a0a10}
+.code-row{display:flex; justify-content:space-between; gap:12px; align-items:baseline; font-family:var(--mono); font-size:12.5px}
+.code-row span{color:var(--muted); overflow-wrap:anywhere}
+.code-row code{flex:none; color:var(--blood-3); font-weight:700; letter-spacing:.04em}
+.toast-stack{position:fixed; left:50%; bottom:calc(18px + env(safe-area-inset-bottom)); z-index:1000; transform:translateX(-50%); width:min(430px,calc(100vw - 24px)); display:grid; gap:8px; pointer-events:none}
+.toast{pointer-events:auto; padding:10px 14px; border:1px solid #2b2b3a; border-left:3px solid var(--dim); border-radius:10px; background:#15151f; color:#e6e6ee; font-size:13px; line-height:1.45; box-shadow:0 18px 50px -20px #000; cursor:pointer; animation:toast-in .2s var(--ease); overflow-wrap:anywhere}
+.toast-ok{border-left-color:var(--ok)}
+.toast-error{border-left-color:#f43f5e}
+.toast-warn{border-left-color:var(--warn)}
+.toast-out{opacity:0; transform:translateY(8px); transition:opacity .2s,transform .2s}
+.modal{width:min(440px,calc(100vw - 32px)); max-height:min(88dvh,760px); padding:0; border:1px solid #343445; border-radius:20px; background:#111118; color:var(--ink); box-shadow:0 40px 120px -30px #000; overflow:auto}
+.modal::backdrop{background:rgba(3,3,6,.76); backdrop-filter:blur(3px)}
+.modal-panel{padding:22px}
+.modal-title{margin:0 0 8px; color:#fff; font-size:17px; font-weight:800; line-height:1.3}
+.modal-body{color:#c7c7d4; font-size:13.5px; line-height:1.55}
+.modal-body p{margin:0 0 10px}
+.modal-body p:last-child{margin-bottom:0}
+.modal-actions{display:flex; gap:8px; margin-top:20px}
+.modal-actions .btn{flex:1}
+.err{margin:10px 0 0; color:#fda4af; font-size:12.5px; min-height:1em}
+.err:empty{display:none}
+.footer{margin-top:34px; text-align:center; color:#5f5f73; font-size:11.5px; line-height:1.7}
+.fine{color:#4c4c5e; font-size:10.5px; letter-spacing:.02em}
+.sr-only{position:absolute!important; width:1px!important; height:1px!important; padding:0!important; margin:-1px!important; overflow:hidden!important; clip:rect(0,0,0,0)!important; white-space:nowrap!important; border:0!important}
+.file-btn{position:relative; overflow:hidden}
+.file-btn input[type="file"]{position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer}
+.file-btn:focus-within{outline:2px solid var(--blood-3); outline-offset:2px}
+.is-busy{position:relative; color:transparent!important}
+.is-busy::after{content:""; position:absolute; width:15px; height:15px; border-radius:50%; border:2px solid rgba(255,255,255,.4); border-top-color:#fff; animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes secret-in{from{opacity:0; transform:scale(.985)}to{opacity:1; transform:scale(1)}}
+@keyframes toast-in{from{opacity:0; transform:translateY(8px)}to{opacity:1; transform:translateY(0)}}
+@media (max-width:600px){
+  .wrap{padding-top:28px}
+  .choice-grid{grid-template-columns:1fr}
+  .card{padding:17px}
+  .details-card > summary{padding:15px 17px}
+  .details-card .details-body{padding:0 17px 17px}
+  .stats{gap:6px}
+  .stat b{font-size:20px}
+  .player-name{min-width:90px}
+  .modal-panel{padding:19px}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="masthead">
+    <div class="eyebrow">// Classified</div>
+    <h1 class="title">Senior Assassin</h1>
+    <p class="lede">One unbroken chain. Everyone hunts one. Everyone is hunted by one.</p>
+  </header>
+
+  <nav id="tabs" class="tabs" aria-label="Sections" hidden></nav>
+  <main id="view" tabindex="-1"></main>
+
+  <footer class="footer">
+    <p>Runs in your browser. Game data is shared in real time through Supabase.</p>
+    <p class="fine">No accounts · Shared state · No tracking</p>
+  </footer>
+</div>
+
+<div id="toasts" class="toast-stack" role="status" aria-live="polite" aria-atomic="false"></div>
+<dialog id="modal" class="modal" aria-labelledby="modal-title"></dialog>
+
+<noscript>
+  <div style="position:fixed;inset:0;z-index:2000;display:grid;place-items:center;background:#07070b;padding:24px;text-align:center">
+    <div>
+      <h1 style="color:#fff">JavaScript is required</h1>
+      <p style="color:#9b9bad">Enable JavaScript and reload the page to run Senior Assassin.</p>
+    </div>
+  </div>
+</noscript>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function () {
+'use strict';
+
+/* =========================================================
+   1. Constants
+   ========================================================= */
+/* Replace these two placeholders before using the app. */
+const SUPABASE_URL       = 'https://ytcvpstzyvakvvluaqfd.supabase.co/rest/v1/';
+const SUPABASE_ANON_KEY  = 'sb_publishable_nC1oWxtZDSpy1dURpF_3OA_FB0qWKMZ';
+
+const STORE_KEY       = 'senior-assassin-v4';   /* one-time migration only */
+const LEGACY_KEY      = 'senior-assassin-v3';   /* one-time migration only */
+const SESSION_KEY     = 'senior-assassin-session-v4';
+const STATE_TABLE     = 'senior_assassin_state';
+const STATE_ROW_ID    = 1;
+const SCHEMA          = 4;
+const APP_VERSION     = '5.0';
+
+/* Only a salted PBKDF2-SHA256 hash of the host key lives in this file. */
+const HOST_SALT   = 'senior-assassin/host/v1';
+const HOST_ITER   = 200000;
+const HOST_HASHES = [
+  'f9ffbf4415a92f278ec3da699b4f85aa1127ad0fb7f36e549196fce64bfdd9df',
+  '95555a8778bfd2fdb673c00a08c3f84245505fb94ecb5497fdb26014320d500c'
+];
+
+/* New credentials use 150k iterations; older saved PINs keep their recorded count. */
+const PIN_ITER        = 150000;
+const PIN_ITER_LEGACY = 100000;
+const MAX_PLAYERS     = 120;
+const MIN_PLAYERS     = 3;
+const MAX_NAME        = 40;
+const MIN_PIN         = 4;
+const MAX_PIN         = 8;
+const HOST_IDLE_MS    = 5 * 60 * 1000;
+const HOST_WARN_MS    = 60 * 1000;
+const LOCK_AFTER      = 5;
+const LOCK_BASE_MS    = 30000;
+const LOCK_MAX_MS     = 15 * 60 * 1000;
+const GLOBAL_WINDOW   = 10 * 60 * 1000;
+const GLOBAL_LIMIT    = 25;
+const GLOBAL_LOCK_MS  = 60000;
+const REVEAL_SECS     = 8;
+const UNDO_LIMIT      = 10;
+const ROUND_MS        = 14 * 24 * 60 * 60 * 1000;
+const HISTORY_LIMIT   = 100;
+
+const HAS_CRYPTO = !!(window.crypto && window.crypto.subtle && window.crypto.getRandomValues);
+
+/* =========================================================
+   2. Small utilities
+   ========================================================= */
+const $  = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+}[c]));
+
+const num = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+};
+const clampInt = (value, min, max, fallback = min) => {
+  const n = Math.floor(num(value));
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+};
+const cleanName = (value) => String(value ?? '')
+  .replace(/[\u0000-\u001f\u007f]/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim()
+  .slice(0, MAX_NAME);
+
+const pad2 = (n) => String(n).padStart(2, '0');
+const fmtClock = (ts) => {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+};
+const fmtAgo = (ts) => {
+  if (!ts) return '';
+  const secs = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+  if (secs < 10) return 'now';
+  if (secs < 60) return `${secs}s`;
+  if (secs < 3600) return `${Math.floor(secs / 60)}m`;
+  if (secs < 86400) return `${Math.floor(secs / 3600)}h`;
+  return `${Math.floor(secs / 86400)}d`;
+};
+const fmtSecs = (secs) => {
+  const s = Math.max(1, Math.ceil(secs));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return r ? `${m}m ${r}s` : `${m}m`;
+};
+const fmtAgoLong = (ts) => {
+  const value = fmtAgo(ts);
+  return value === 'now' ? 'just now' : `${value} ago`;
+};
+const fmtDateTime = (ts) => {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleString(undefined, {
+    year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+  });
+};
+const toDateTimeInput = (ts) => {
+  const d = new Date(ts || Date.now());
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+};
+const fmtRoundLeft = (ms) => {
+  const mins = Math.max(0, Math.ceil(ms / 60000));
+  const days = Math.floor(mins / 1440);
+  const hours = Math.floor((mins % 1440) / 60);
+  const minutes = mins % 60;
+  if (days) return `${days}d ${hours}h ${minutes}m`;
+  if (hours) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+};
+
+function randomBytes(length) {
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  return bytes;
+}
+const hex = (bytes) => Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+
+/* Unbiased random integer in [0, max). */
+function secureInt(max) {
+  const n = Math.floor(max);
+  if (!Number.isFinite(n) || n <= 0) throw new Error('secureInt: max must be positive');
+  if (n === 1) return 0;
+  const limit = Math.floor(0x100000000 / n) * n;
+  const bucket = new Uint32Array(1);
+  let guard = 0;
+  do {
+    crypto.getRandomValues(bucket);
+    guard += 1;
+    if (guard > 1000) throw new Error('secureInt: random source failed');
+  } while (bucket[0] >= limit);
+  return bucket[0] % n;
+}
+
+function shuffle(list) {
+  const copy = list.slice();
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = secureInt(i + 1);
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+function makeCode() {
+  let raw = '';
+  for (let i = 0; i < 8; i += 1) raw += CODE_CHARS[secureInt(CODE_CHARS.length)];
+  return raw.slice(0, 4) + '-' + raw.slice(4);
+}
+const normCode = (value) => String(value ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+
+async function kdf(secret, salt, iterations) {
+  if (!HAS_CRYPTO) throw new Error('Secure crypto is unavailable on this page.');
+  const key = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(String(secret)),
+    { name: 'PBKDF2' }, false, ['deriveBits']
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', hash: 'SHA-256', salt: new TextEncoder().encode(String(salt)), iterations },
+    key, 256
+  );
+  return hex(new Uint8Array(bits));
+}
+
+/* Constant-time-ish string compare. */
+function eq(a, b) {
+  const x = String(a ?? '');
+  const y = String(b ?? '');
+  if (x.length !== y.length) return false;
+  let diff = 0;
+  for (let i = 0; i < x.length; i += 1) diff |= x.charCodeAt(i) ^ y.charCodeAt(i);
+  return diff === 0;
+}
+
+/* =========================================================
+   3. State shape, validation, persistence
+   ========================================================= */
+function blankState() {
+  return {
+    v: SCHEMA,
+    rev: 0,
+    phase: 'setup',
+    round: 0,
+    nextId: 1,
+    createdAt: Date.now(),
+    updatedAt: 0,
+    startedAt: 0,
+    endedAt: 0,
+    players: [],
+    log: [],
+    history: [],
+    audit: [],
+    locks: {}
+  };
+}
+
+function normalizeCredential(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const salt = String(raw.salt ?? '');
+  const hash = String(raw.hash ?? '');
+  if (!/^[a-f0-9]{8,64}$/i.test(salt) || !/^[a-f0-9]{64}$/i.test(hash)) return null;
+  const iter = Number.isFinite(Number(raw.iter))
+    ? clampInt(raw.iter, 10000, 1000000, PIN_ITER_LEGACY)
+    : PIN_ITER_LEGACY;
+  return { salt, hash, iter };
+}
+
+function makeCredentialRecord(salt, hash, iter) {
+  return { salt, hash, iter };
+}
+
+function normalizeLogType(value, text) {
+  if (['kill', 'join', 'host', 'win', 'round', 'info'].includes(value)) return value;
+  if (/eliminated/i.test(text)) return 'kill';
+  if (/joined/i.test(text)) return 'join';
+  if (/removed/i.test(text)) return 'host';
+  if (/last one standing|wins/i.test(text)) return 'win';
+  if (/round/i.test(text)) return 'round';
+  return 'info';
+}
+
+function normalizeEntries(raw, limit = 300) {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  for (const item of raw.slice(-limit)) {
+    if (typeof item === 'string') {
+      const text = item.slice(0, 200);
+      if (text) out.push({ t: 0, text, type: normalizeLogType('', text) });
+      continue;
+    }
+    if (!item || typeof item !== 'object') continue;
+    const text = String(item.text ?? '').slice(0, 200);
+    if (!text) continue;
+    out.push({
+      t: num(item.t),
+      text,
+      type: normalizeLogType(item.type, text)
+    });
+  }
+  return out;
+}
+
+function normalizeHistory(raw) {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  for (const item of raw.slice(-HISTORY_LIMIT)) {
+    if (!item || typeof item !== 'object') continue;
+    const round = Math.max(0, Math.floor(num(item.round)));
+    if (!round) continue;
+    out.push({
+      round,
+      startedAt: Math.max(0, num(item.startedAt)),
+      endedAt: Math.max(0, num(item.endedAt)),
+      winnerId: Math.max(0, Math.floor(num(item.winnerId))),
+      winnerName: cleanName(item.winnerName),
+      reason: ['last', 'host', 'time', 'abandoned', 'import', 'archive'].includes(item.reason) ? item.reason : '',
+      eliminations: normalizeEntries(item.eliminations, 400).filter((entry) => entry.type === 'kill')
+    });
+  }
+  return out;
+}
+
+/* The winner is the last player alive, or the unique alive leader on eliminations. */
+function roundWinner(s = state) {
+  const alive = (s.players || []).filter((p) => p.status === 'alive');
+  if (alive.length === 1) return alive[0];
+  if (!alive.length) return null;
+  let best = null;
+  let tied = false;
+  for (const player of alive) {
+    const kills = player.kills || 0;
+    if (!best || kills > (best.kills || 0)) {
+      best = player;
+      tied = false;
+    } else if (kills === (best.kills || 0)) {
+      tied = true;
+    }
+  }
+  return best && (best.kills || 0) > 0 && !tied ? best : null;
+}
+
+function buildHistoryRecord(s, reason, winner) {
+  const champ = winner === undefined ? roundWinner(s) : winner;
+  return {
+    round: s.round,
+    startedAt: s.startedAt,
+    endedAt: s.endedAt || Date.now(),
+    winnerId: champ ? champ.id : 0,
+    winnerName: champ ? champ.name : '',
+    reason: reason || '',
+    eliminations: (s.log || [])
+      .filter((entry) => entry.type === 'kill')
+      .map((entry) => ({ t: num(entry.t), text: String(entry.text || '').slice(0, 200), type: 'kill' }))
+  };
+}
+
+function recordRoundHistory(s, reason, winner) {
+  if (!s || !s.round || !s.startedAt) return null;
+  if (!Array.isArray(s.history)) s.history = [];
+  const existing = s.history.find((entry) => entry.round === s.round);
+  if (existing) return existing;
+  const record = buildHistoryRecord(s, reason, winner);
+  s.history.push(record);
+  if (s.history.length > HISTORY_LIMIT) s.history.splice(0, s.history.length - HISTORY_LIMIT);
+  return record;
+}
+
+function normalizeLocks(raw) {
+  const out = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  for (const [key, value] of Object.entries(raw)) {
+    if (!/^(host|p\d+|r\d+|\*)$/.test(key)) continue;
+    if (!value || typeof value !== 'object') continue;
+    const hits = Array.isArray(value.hits)
+      ? value.hits.filter((t) => Number.isFinite(Number(t))).map(Number).slice(-50)
+      : [];
+    out[key] = {
+      n: clampInt(value.n, 0, 1000, 0),
+      strikes: clampInt(value.strikes, 0, 100, 0),
+      until: Math.max(0, num(value.until)),
+      hits
+    };
+  }
+  return out;
+}
+
+function normalizeState(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const s = blankState();
+  s.rev = Math.max(0, Math.floor(num(raw.rev)));
+  s.createdAt = num(raw.createdAt) || Date.now();
+  s.updatedAt = num(raw.updatedAt) || 0;
+  s.phase = ['setup', 'playing', 'over'].includes(raw.phase) ? raw.phase : 'setup';
+  s.round = Math.max(0, Math.floor(num(raw.round)));
+  s.startedAt = Math.max(0, num(raw.startedAt));
+  s.endedAt = Math.max(0, num(raw.endedAt));
+
+  const usedIds = new Set();
+  let maxId = 0;
+  const players = [];
+  if (Array.isArray(raw.players)) {
+    for (const rp of raw.players) {
+      if (!rp || typeof rp !== 'object') continue;
+      const name = cleanName(rp.name);
+      if (!name) continue;
+      let id = Math.floor(num(rp.id));
+      if (!Number.isFinite(id) || id <= 0 || usedIds.has(id)) id = 0;
+      const player = {
+        id,
+        name,
+        status: ['waiting', 'alive', 'out'].includes(rp.status) ? rp.status : 'waiting',
+        target: Number.isFinite(Number(rp.target)) ? Math.floor(Number(rp.target)) : -1,
+        kills: clampInt(rp.kills, 0, 100000, 0),
+        pin: normalizeCredential(rp.pin),
+        tempCode: normalizeCredential(rp.tempCode),
+        joinedAt: Math.max(0, num(rp.joinedAt))
+      };
+      if (id) {
+        usedIds.add(id);
+        maxId = Math.max(maxId, id);
+      }
+      players.push(player);
+    }
+  }
+  for (const player of players) {
+    if (!player.id) {
+      maxId += 1;
+      player.id = maxId;
+      usedIds.add(maxId);
+    }
+  }
+  s.players = players;
+  s.nextId = Math.max(1, Math.floor(num(raw.nextId)), maxId + 1);
+  s.log = normalizeEntries(raw.log, 300);
+  s.history = normalizeHistory(raw.history);
+  s.audit = normalizeEntries(raw.audit, 200);
+  s.locks = normalizeLocks(raw.locks);
+
+  /* Backfill one history entry for a round that ended before history existed. */
+  if (s.phase === 'over' && s.round > 0 && s.startedAt > 0) {
+    recordRoundHistory(s, 'archive');
+  }
+  return s;
+}
+
+let state = blankState();
+let importedLegacy = false;
+let sb = null;
+let remoteReady = false;
+
+const ui = {
+  stage: 'landing',
+  role: null,
+  tab: null,
+  me: null,
+  busy: false,
+  focusSel: null,
+  focusView: false,
+  lastActive: Date.now(),
+  idleWarned: false,
+  storageWarned: false,
+  pendingSync: false,
+  undo: []
+};
+
+const byId = (id) => state.players.find((p) => p.id === Number(id));
+const alivePlayers = (s = state) => s.players.filter((p) => p.status === 'alive');
+const isHost = () => ui.role === 'host';
+const isPlayer = () => ui.role === 'player';
+
+function joinablePlayers(s = state) {
+  if (s.phase === 'over') return [];
+  return s.players.filter((p) => {
+    if (p.pin || p.status === 'out') return false;
+    if (s.phase === 'setup') return true;
+    return !!p.tempCode;
+  });
+}
+
+function defaultPlayerTab() {
+  const me = ui.me ? byId(ui.me) : null;
+  if (state.phase === 'over') return 'status';
+  if (state.phase === 'setup') {
+    if (me && !me.pin) return 'join';
+    if (!me && joinablePlayers().length) return 'join';
+    return 'status';
+  }
+  if (me && me.pin && me.status === 'alive') return 'reveal';
+  if (!me && joinablePlayers().length) return 'join';
+  return 'status';
+}
+
+function createSupabaseClient() {
+  if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+    throw new Error('The Supabase library did not load. Check your connection and the CDN script tag.');
+  }
+  if (/^PASTE_/.test(SUPABASE_URL) || /^PASTE_/.test(SUPABASE_ANON_KEY)) {
+    throw new Error('Add your SUPABASE_URL and SUPABASE_ANON_KEY near the top of the script.');
+  }
+  if (!/^https:\/\//.test(SUPABASE_URL)) {
+    throw new Error('SUPABASE_URL must start with https://');
+  }
+  return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    realtime: { params: { eventsPerSecond: 25 } }
+  });
+}
+
+function readLegacyLocalState() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY) || localStorage.getItem(LEGACY_KEY);
+    if (!raw) return null;
+    return normalizeState(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
+function rowToState(row) {
+  if (!row) return null;
+  const raw = row.data || {};
+  const next = normalizeState(raw);
+  if (!next) return null;
+  next.rev = Math.max(0, Math.floor(num(row.rev)));
+  next.updatedAt = Date.parse(row.updated_at) || num(raw.updatedAt) || 0;
+  return next;
+}
+
+async function fetchRemoteState() {
+  const { data, error } = await sb
+    .from(STATE_TABLE)
+    .select('rev, data, updated_at')
+    .eq('id', STATE_ROW_ID)
+    .maybeSingle();
+  if (error) throw error;
+  return rowToState(data);
+}
+
+function adoptRemote(next, silent = false) {
+  if (!next) return;
+  state = next;
+  state.rev = Math.max(0, Math.floor(num(state.rev)));
+  ui.undo = [];
+
+  if (ui.me && !byId(ui.me)) {
+    ui.me = null;
+    clearSession();
+  }
+  if (ui.stage === 'app' && ui.tab && !availableTabs().some(([key]) => key === ui.tab)) {
+    ui.tab = null;
+  }
+  if (silent) return;
+  if (modalOpen() || secret.timer || ui.busy) {
+    ui.pendingSync = true;
+    return;
+  }
+  announceSync();
+}
+
+async function writeRemoteState() {
+  const expected = Math.max(0, Math.floor(num(state.rev)));
+  const next = JSON.parse(JSON.stringify(state));
+  next.rev = expected + 1;
+  next.updatedAt = Date.now();
+
+  const { data, error } = await sb
+    .from(STATE_TABLE)
+    .update({
+      rev: next.rev,
+      data: next,
+      updated_at: new Date(next.updatedAt).toISOString()
+    }, { count: 'exact' })
+    .eq('id', STATE_ROW_ID)
+    .eq('rev', expected)
+    .select('id');
+
+  if (error) throw error;
+  if (data && data.length) {
+    state.rev = next.rev;
+    state.updatedAt = next.updatedAt;
+    return true;
+  }
+
+  const fresh = await fetchRemoteState();
+  if (fresh) adoptRemote(fresh, true);
+  return false;
+}
+
+async function saveState() {
+  if (!remoteReady) throw new Error('The shared game is not connected yet. Reload and try again.');
+  return writeRemoteState();
+}
+
+async function saveLocks() {
+  const locks = JSON.parse(JSON.stringify(state.locks || {}));
+  return applyChange((s) => {
+    s.locks = normalizeLocks(locks);
+    return true;
+  });
+}
+
+async function createRemoteRow(seed) {
+  const record = normalizeState(seed) || blankState();
+  record.rev = Math.max(0, Math.floor(num(record.rev))) + 1;
+  record.updatedAt = Date.now();
+
+  const { data, error } = await sb
+    .from(STATE_TABLE)
+    .insert({
+      id: STATE_ROW_ID,
+      rev: record.rev,
+      data: record,
+      updated_at: new Date(record.updatedAt).toISOString()
+    })
+    .select('rev, data, updated_at')
+    .maybeSingle();
+
+  if (error && error.code === '23505') {
+    const existing = await fetchRemoteState();
+    if (existing) return existing;
+    throw error;
+  }
+  if (error) throw error;
+  return rowToState(data) || record;
+}
+
+async function bootstrapRemote() {
+  let remote = await fetchRemoteState();
+  if (!remote) {
+    const local = readLegacyLocalState();
+    remote = await createRemoteRow(local || blankState());
+    if (local) importedLegacy = true;
+  }
+  adoptRemote(remote, true);
+}
+
+function handleRemotePayload(payload) {
+  if (!payload) return;
+  if (payload.eventType === 'DELETE') {
+    adoptRemote(blankState(), false);
+    return;
+  }
+  const next = rowToState(payload.new);
+  if (!next) return;
+  if (next.rev <= (state.rev || 0)) return;
+  adoptRemote(next, false);
+}
+
+function subscribeRemote() {
+  sb.channel('senior-assassin-' + STATE_ROW_ID)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: STATE_TABLE, filter: `id=eq.${STATE_ROW_ID}` },
+      handleRemotePayload
+    )
+    .subscribe((status) => {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        toast('Live connection interrupted. Changes still save; reload to resync.', 'warn', 7000);
+      }
+    });
+}
+
+function pushAudit(target, text) {
+  target.audit.push({ t: Date.now(), text, type: 'info' });
+  if (target.audit.length > 200) target.audit.splice(0, target.audit.length - 200);
+}
+
+function pushLog(target, text, type = 'info') {
+  target.log.push({ t: Date.now(), text, type });
+  if (target.log.length > 300) target.log.splice(0, target.log.length - 300);
+}
+
+/* A valid chain is one single loop through every living player. */
+function verifyChain(list, strict) {
+  const n = list.length;
+  if (n < 2) return true;
+  const map = new Map(list.map((p) => [p.id, p]));
+  if (map.size !== n) return false;
+  const targets = new Set();
+  for (const player of list) {
+    if (!map.has(player.target) || player.target === player.id) return false;
+    if (targets.has(player.target)) return false;
+    targets.add(player.target);
+    if (strict && map.get(player.target).target === player.id) return false;
+  }
+  let cursor = list[0].id;
+  let steps = 0;
+  do {
+    cursor = map.get(cursor).target;
+    steps += 1;
+  } while (cursor !== list[0].id && steps <= n);
+  return steps === n;
+}
+
+const chainOk = (s = state) => {
+  const alive = alivePlayers(s);
+  return alive.length < 2 || verifyChain(alive, false);
+};
+
+function gameWinner(s = state) {
+  if (s.phase !== 'over') return null;
+  const alive = alivePlayers(s);
+  if (alive.length === 1) return alive[0];
+  const record = (s.history || []).find((entry) => entry.round === s.round);
+  return record && record.winnerName ? { id: record.winnerId || 0, name: record.winnerName } : null;
+}
+
+function finishRound(s, reason) {
+  if (!s || s.phase !== 'playing') return null;
+  const winner = roundWinner(s);
+  s.phase = 'over';
+  s.endedAt = Date.now();
+  if (winner) {
+    const text = reason === 'last'
+      ? `${winner.name} is the last one standing`
+      : `${winner.name} wins round ${s.round}`;
+    pushLog(s, text, 'win');
+    pushAudit(s, `Round ${s.round} ended: ${winner.name} won`);
+  } else {
+    pushLog(s, `Round ${s.round} ended without a winner`, 'round');
+    pushAudit(s, `Round ${s.round} ended without a winner`);
+  }
+  recordRoundHistory(s, reason || 'archive');
+  return winner;
+}
+
+function winCounts(s = state) {
+  const out = new Map();
+  for (const entry of s.history || []) {
+    if (!entry || !entry.winnerId) continue;
+    out.set(entry.winnerId, (out.get(entry.winnerId) || 0) + 1);
+  }
+  return out;
+}
+
+function winLabel(count) {
+  return `${count} ${count === 1 ? 'win' : 'wins'}`;
+}
+
+/* =========================================================
+   4. Attempt throttling (persisted)
+   ========================================================= */
+function lockLeft(key) {
+  const lock = state.locks[key];
+  if (!lock || !lock.until) return 0;
+  return lock.until > Date.now() ? Math.ceil((lock.until - Date.now()) / 1000) : 0;
+}
+const guard = (key) => Math.max(lockLeft(key), lockLeft('*'));
+
+function attemptsLeft(key) {
+  if (guard(key)) return 0;
+  const lock = state.locks[key];
+  return lock ? Math.max(0, LOCK_AFTER - lock.n) : LOCK_AFTER;
+}
+
+async function fail(key) {
+  const now = Date.now();
+  const lock = state.locks[key] = state.locks[key] || { n: 0, strikes: 0, until: 0, hits: [] };
+  lock.n = (lock.n || 0) + 1;
+  if (lock.n >= LOCK_AFTER) {
+    lock.n = 0;
+    lock.strikes = (lock.strikes || 0) + 1;
+    lock.until = now + Math.min(LOCK_BASE_MS * Math.pow(2, lock.strikes - 1), LOCK_MAX_MS);
+  }
+  const global = state.locks['*'] = state.locks['*'] || { hits: [], until: 0 };
+  global.hits = (global.hits || []).filter((t) => now - t < GLOBAL_WINDOW);
+  global.hits.push(now);
+  if (global.hits.length >= GLOBAL_LIMIT) {
+    global.hits = [];
+    global.until = now + GLOBAL_LOCK_MS;
+  }
+  await saveLocks();
+}
+
+async function succeed(key) {
+  if (state.locks[key]) {
+    delete state.locks[key];
+    await saveLocks();
+  }
+}
+
+/* =========================================================
+   5. Credentials
+   ========================================================= */
+async function checkPin(player, pin) {
+  if (!player) return { ok: false, err: 'Pick your name first.' };
+  const key = 'p' + player.id;
+  const left = guard(key);
+  if (left) return { ok: false, err: `Too many attempts. Try again in ${fmtSecs(left)}.` };
+  if (!/^\d{4,8}$/.test(String(pin ?? ''))) {
+    return { ok: false, err: 'PINs are 4–8 digits.' };
+  }
+  if (!player.pin) {
+    return { ok: false, err: 'This PIN was reset. Ask the host for a new registration code.' };
+  }
+
+  const salt = player.pin.salt;
+  const iterations = player.pin.iter || PIN_ITER_LEGACY;
+  const expected = player.pin.hash;
+  const actual = await kdf(String(pin), salt, iterations);
+
+  const latest = byId(player.id);
+  if (!latest || !latest.pin || latest.pin.hash !== expected) {
+    return { ok: false, err: 'Your PIN was just changed. Try again.' };
+  }
+  if (eq(actual, expected)) {
+    await succeed(key);
+    rememberMe(latest.id);
+    return { ok: true, player: latest };
+  }
+
+  await fail(key);
+  const locked = guard(key);
+  if (locked) return { ok: false, err: `Too many attempts. Try again in ${fmtSecs(locked)}.` };
+  const leftNow = attemptsLeft(key);
+  return {
+    ok: false,
+    err: leftNow <= 1
+      ? 'Wrong PIN. One attempt left before a lockout.'
+      : `Wrong PIN. ${leftNow} attempts left.`
+  };
+}
+
+async function registerPin(player, pin, confirm, code) {
+  if (!player) return { ok: false, err: 'Pick your name first.' };
+  const key = 'r' + player.id;
+  const left = guard(key);
+  if (left) return { ok: false, err: `Too many attempts. Try again in ${fmtSecs(left)}.` };
+  if (player.pin) return { ok: false, err: 'This name is already registered.' };
+  if (!new RegExp(`^\\d{${MIN_PIN},${MAX_PIN}}$`).test(String(pin ?? ''))) {
+    return { ok: false, err: `Choose a PIN of ${MIN_PIN}–${MAX_PIN} digits.` };
+  }
+  if (String(pin) !== String(confirm)) return { ok: false, err: 'The PINs do not match.' };
+
+  let codeHash = null;
+  const hadTemp = !!player.tempCode;
+  if (hadTemp) {
+    codeHash = player.tempCode.hash;
+    const entered = normCode(code);
+    if (entered.length !== 8) {
+      await fail(key);
+      return { ok: false, err: 'Enter the 8-character code from the host.' };
+    }
+    const actual = await kdf(entered, player.tempCode.salt, player.tempCode.iter || PIN_ITER_LEGACY);
+    if (!eq(actual, codeHash)) {
+      await fail(key);
+      const locked = guard(key);
+      return { ok: false, err: locked ? `Wrong code. Locked for ${fmtSecs(locked)}.` : 'That registration code is not correct.' };
+    }
+  } else if (state.phase !== 'setup') {
+    return { ok: false, err: 'Registration is closed. Ask the host for a code.' };
+  }
+
+  const salt = hex(randomBytes(16));
+  const hash = await kdf(String(pin), salt, PIN_ITER);
+  const playerId = player.id;
+
+  const change = await applyChange((s) => {
+    const target = s.players.find((p) => p.id === playerId);
+    if (!target || target.pin) return false;
+    if (hadTemp) {
+      if (!target.tempCode || target.tempCode.hash !== codeHash) return false;
+    } else if (s.phase !== 'setup') {
+      return false;
+    }
+    target.pin = makeCredentialRecord(salt, hash, PIN_ITER);
+    delete target.tempCode;
+    pushAudit(s, `${target.name} registered a PIN`);
+    return true;
+  });
+
+  if (!change.ok) {
+    return { ok: false, err: change.error || 'Registration changed. Try again.' };
+  }
+
+  await succeed(key);
+  await succeed('p' + playerId);
+  const registered = byId(playerId);
+  rememberMe(playerId);
+  return { ok: true, player: registered };
+}
+
+async function codeCredential(code) {
+  const salt = hex(randomBytes(16));
+  const hash = await kdf(normCode(code), salt, PIN_ITER);
+  return makeCredentialRecord(salt, hash, PIN_ITER);
+}
+
+async function makeTempCode(player) {
+  const code = makeCode();
+  const temp = await codeCredential(code);
+  const playerId = player.id;
+  const change = await applyChange((s) => {
+    const target = s.players.find((p) => p.id === playerId);
+    if (!target) return false;
+    target.tempCode = temp;
+    delete target.pin;
+    return true;
+  });
+  return change.ok ? code : null;
+}
+
+/* =========================================================
+   6. Device session (player identity only, never secrets)
+   ========================================================= */
+function readSession() {
+  try {
+    const raw = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
+    if (!raw || raw.role !== 'player') return null;
+    const id = Math.floor(num(raw.me));
+    return id > 0 ? id : null;
+  } catch {
+    return null;
+  }
+}
+function saveSession() {
+  try {
+    if (ui.role === 'player' && ui.me) {
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({ role: 'player', me: ui.me }));
+    } else {
+      sessionStorage.removeItem(SESSION_KEY);
+    }
+  } catch { /* session storage is optional */ }
+}
+function clearSession() {
+  try { sessionStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
+}
+function rememberMe(id) {
+  if (!byId(id)) return;
+  ui.me = Number(id);
+  if (ui.role === 'player') saveSession();
+}
+
+/* =========================================================
+   7. Toasts, clipboard, downloads
+   ========================================================= */
+function toast(text, type = 'info', duration = 4200) {
+  const root = $('#toasts');
+  if (!root) return;
+  while (root.children.length >= 4) root.firstElementChild.remove();
+  const node = document.createElement('div');
+  node.className = `toast toast-${type}`;
+  node.textContent = String(text ?? '');
+  node.addEventListener('click', () => node.remove());
+  root.appendChild(node);
+  window.setTimeout(() => {
+    node.classList.add('toast-out');
+    window.setTimeout(() => node.remove(), 240);
+  }, duration);
+}
+
+async function copyText(text) {
+  const value = String(text ?? '');
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch { /* fall through */ }
+  }
+  const area = document.createElement('textarea');
+  area.value = value;
+  area.setAttribute('readonly', '');
+  area.style.position = 'fixed';
+  area.style.top = '-1000px';
+  area.style.opacity = '0';
+  document.body.appendChild(area);
+  area.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch { ok = false; }
+  area.remove();
+  return ok;
+}
+
+function downloadText(filename, text, mime = 'application/json') {
+  try {
+    const blob = new Blob([String(text)], { type: mime + ';charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+    return true;
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
+}
+
+/* =========================================================
+   8. Modal dialogs
+   ========================================================= */
+let modalState = null;
+const modalOpen = () => !!modalState;
+
+function openModal(options) {
+  const dlg = $('#modal');
+  if (!dlg || modalState) return Promise.resolve(null);
+  const {
+    title = '', body = '', okLabel = 'OK', cancelLabel = 'Cancel',
+    cancelable = true, danger = false, input = null, validate = null, onMount = null
+  } = options || {};
+
+  return new Promise((resolve) => {
+    const session = { resolve, done: false };
+    modalState = session;
+
+    dlg.innerHTML = `
+      <div class="modal-panel">
+        <h2 class="modal-title" id="modal-title">${esc(title)}</h2>
+        <div class="modal-body">${body}</div>
+        ${input ? `
+          <label class="label" for="modalInput">${esc(input.label || '')}</label>
+          <input id="modalInput" class="input" autocomplete="off" spellcheck="false"
+            maxlength="${clampInt(input.maxLength, 1, 100, 60)}"
+            placeholder="${esc(input.placeholder || '')}"
+            value="${esc(input.value || '')}">
+          <p class="err" id="modalErr" role="alert"></p>` : ''}
+        <div class="modal-actions">
+          ${cancelable ? `<button type="button" class="btn btn-ghost" data-modal-cancel>${esc(cancelLabel)}</button>` : ''}
+          <button type="button" class="btn ${danger ? 'btn-danger' : 'btn-primary'}" data-modal-ok>${esc(okLabel)}</button>
+        </div>
+      </div>`;
+
+    const okBtn = $('[data-modal-ok]', dlg);
+    const cancelBtn = $('[data-modal-cancel]', dlg);
+    const inputEl = $('#modalInput', dlg);
+    const errEl = $('#modalErr', dlg);
+
+    const finish = (value) => {
+      if (session.done) return;
+      session.done = true;
+      modalState = null;
+      try { dlg.close(); } catch { /* ignore */ }
+      document.body.classList.remove('modal-open');
+      resolve(value);
+    };
+
+    const tryOk = () => {
+      let value = true;
+      if (inputEl) {
+        value = inputEl.value;
+        if (validate) {
+          const message = validate(value);
+          if (message) {
+            if (errEl) errEl.textContent = message;
+            inputEl.focus();
+            inputEl.select();
+            return;
+          }
+        }
+      }
+      finish(value);
+    };
+
+    okBtn.addEventListener('click', tryOk);
+    if (cancelBtn) cancelBtn.addEventListener('click', () => finish(null));
+
+    dlg.oncancel = (event) => {
+      event.preventDefault();
+      if (cancelable) finish(null);
+    };
+    dlg.onclick = (event) => {
+      if (event.target === dlg && cancelable) finish(null);
+    };
+    dlg.onclose = () => {
+      if (!session.done) finish(null);
+    };
+    dlg.onkeydown = (event) => {
+      if (event.key === 'Enter' && inputEl && event.target === inputEl) {
+        event.preventDefault();
+        tryOk();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusable = $$('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [href]', dlg)
+        .filter((el) => el.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.body.classList.add('modal-open');
+    try { dlg.showModal(); } catch { finish(null); return; }
+    if (inputEl) {
+      inputEl.focus();
+      inputEl.select();
+    } else {
+      okBtn.focus();
+    }
+    if (onMount) onMount(dlg);
+  });
+}
+
+function closeModal() {
+  if (!modalState) return;
+  const dlg = $('#modal');
+  modalState.done = true;
+  const resolve = modalState.resolve;
+  modalState = null;
+  try { dlg.close(); } catch { /* ignore */ }
+  document.body.classList.remove('modal-open');
+  resolve(null);
+}
+
+function confirmDialog(title, message, options = {}) {
+  return openModal({
+    title,
+    body: `<p>${message}</p>`,
+    okLabel: options.okLabel || 'Confirm',
+    cancelLabel: options.cancelLabel || 'Cancel',
+    danger: !!options.danger
+  }).then((value) => value === true);
+}
+
+function promptDialog(title, label, options = {}) {
+  return openModal({
+    title,
+    body: options.body ? `<p>${options.body}</p>` : '',
+    okLabel: options.okLabel || 'Save',
+    input: {
+      label,
+      value: options.value || '',
+      placeholder: options.placeholder || '',
+      maxLength: options.maxLength || 60
+    },
+    validate: options.validate || null
+  });
+}
+
+function contentDialog(title, body, options = {}) {
+  return openModal({
+    title,
+    body,
+    okLabel: options.okLabel || 'Done',
+    cancelable: false,
+    onMount: options.onMount || null
+  });
+}
+
+function showCodes(codes) {
+  const rows = codes.map(([name, code]) =>
+    `<div class="code-row"><span>${esc(name)}</span><code>${esc(code)}</code></div>`
+  ).join('');
+  const copyValue = codes.map(([name, code]) => `${name}: ${code}`).join('\n');
+  return contentDialog(
+    'Registration codes',
+    `<p>Give each person only their own code. They enter it on the Join tab to choose a PIN.</p>
+     <div class="codes">${rows}</div>
+     <p class="hint">Shown once. If a code is lost, reset that player's PIN to issue a new one.</p>
+     <button type="button" class="btn btn-ghost btn-sm" data-copy-codes>Copy all codes</button>`,
+    {
+      okLabel: 'Done',
+      onMount: (dlg) => {
+        const button = $('[data-copy-codes]', dlg);
+        if (button) {
+          button.addEventListener('click', async () => {
+            if (await copyText(copyValue)) toast('Codes copied.', 'ok');
+            else toast('Could not copy. Select the codes manually.', 'warn');
+          });
+        }
+      }
+    }
+  );
+}
+
+/* =========================================================
+   9. Timed secret display
+   ========================================================= */
+const secret = { timer: null, deadline: 0, total: 0, onDone: null };
+
+function cancelSecret() {
+  if (secret.timer) window.clearInterval(secret.timer);
+  secret.timer = null;
+  secret.deadline = 0;
+  secret.onDone = null;
+  const el = $('#secret');
+  if (el) el.innerHTML = '';
+}
+
+function endSecret() {
+  if (secret.timer) window.clearInterval(secret.timer);
+  secret.timer = null;
+  secret.deadline = 0;
+  const done = secret.onDone;
+  secret.onDone = null;
+  const el = $('#secret');
+  if (el) el.innerHTML = '';
+  if (done) {
+    try { done(); } catch (error) { console.error(error); }
+  }
+}
+
+function startSecret(html, seconds, onDone) {
+  cancelSecret();
+  const el = $('#secret');
+  if (!el) return;
+  const total = Math.max(1, seconds || REVEAL_SECS) * 1000;
+  secret.total = total;
+  secret.deadline = Date.now() + total;
+  secret.onDone = onDone || null;
+
+  el.innerHTML = `
+    <div class="secret-panel" role="status" aria-live="assertive">
+      ${html}
+      <div class="secret-track"><div class="secret-bar" id="secretBar"></div></div>
+      <div class="secret-foot">
+        <span id="secretLeft">Hiding in ${Math.ceil(total / 1000)}s</span>
+        <button type="button" class="secret-hide" data-act="hide-secret">Hide now</button>
+      </div>
+    </div>`;
+
+  const bar = $('#secretBar', el);
+  const leftLabel = $('#secretLeft', el);
+  const tick = () => {
+    if (!secret.deadline) return;
+    const left = secret.deadline - Date.now();
+    if (left <= 0) {
+      endSecret();
+      return;
+    }
+    if (bar) bar.style.transform = `scaleX(${Math.max(0, left / total)})`;
+    if (leftLabel) leftLabel.textContent = `Hiding in ${Math.ceil(left / 1000)}s`;
+  };
+  tick();
+  secret.timer = window.setInterval(tick, 100);
+}
+
+/* =========================================================
+   10. State changes and undo
+   ========================================================= */
+async function applyChange(mutator, options = {}) {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const before = JSON.stringify(state);
+    let result;
+    try {
+      result = mutator(state);
+    } catch (error) {
+      console.error(error);
+      state = JSON.parse(before);
+      return { ok: false, error: error.message || 'Unexpected error.' };
+    }
+    if (result === false) {
+      state = JSON.parse(before);
+      return { ok: false, canceled: true };
+    }
+    if (!chainOk()) {
+      state = JSON.parse(before);
+      return { ok: false, error: 'Chain integrity check failed; the change was rolled back.' };
+    }
+
+    let saved = false;
+    try {
+      saved = await saveState();
+    } catch (error) {
+      console.error(error);
+      state = JSON.parse(before);
+      return { ok: false, error: error.message || 'Could not save to Supabase.' };
+    }
+    if (!saved) continue; /* another device won the race; retry on fresh state */
+
+    if (options.undoLabel) {
+      ui.undo.push({ label: options.undoLabel, json: before });
+      if (ui.undo.length > UNDO_LIMIT) ui.undo.shift();
+    }
+    return { ok: true };
+  }
+  return { ok: false, error: 'Too many conflicting updates. Reload and try again.' };
+}
+
+async function undoLast() {
+  const entry = ui.undo.pop();
+  if (!entry) return;
+  let snapshot = null;
+  try { snapshot = normalizeState(JSON.parse(entry.json)); } catch { snapshot = null; }
+  if (!snapshot) {
+    toast('That undo snapshot is unreadable.', 'error');
+    return;
+  }
+  await replaceState(snapshot);
+  toast(`Undid: ${entry.label}`, 'ok');
+  render();
+}
+
+async function replaceState(next) {
+  const normalized = normalizeState(next) || blankState();
+  await applyChange((s) => {
+    for (const key of Object.keys(s)) delete s[key];
+    Object.assign(s, normalized);
+    return true;
+  });
+}
+
+/* =========================================================
+   11. Shared markup helpers
+   ========================================================= */
+const PHASE_LABEL = { setup: 'Waiting to start', playing: 'Round in progress', over: 'Game over' };
+
+function statusPill(status) {
+  if (status === 'alive') return '<span class="pill pill-ok"><span class="dot dot-alive"></span>Alive</span>';
+  if (status === 'waiting') return '<span class="pill pill-warn"><span class="dot dot-waiting"></span>Waiting</span>';
+  return '<span class="pill pill-out"><span class="dot dot-out"></span>Out</span>';
+}
+
+function feedIcon(type) {
+  if (type === 'kill') return '☠';
+  if (type === 'win') return '★';
+  if (type === 'join') return '→';
+  if (type === 'host') return '⚑';
+  if (type === 'round') return '↻';
+  return '·';
+}
+
+function feedMarkup(entries, emptyText) {
+  if (!entries || !entries.length) return `<p class="hint">${esc(emptyText || 'Nothing yet.')}</p>`;
+  const items = entries.slice().reverse().map((entry) => `
+    <li class="feed-item ${esc(entry.type)}">
+      <span class="feed-icon" aria-hidden="true">${feedIcon(entry.type)}</span>
+      <span class="feed-text">${esc(entry.text)}</span>
+      ${entry.t ? `<time class="feed-time" title="${esc(new Date(entry.t).toLocaleString())}">${esc(fmtAgo(entry.t))}</time>` : ''}
+    </li>`).join('');
+  return `<ul class="feed">${items}</ul>`;
+}
+
+function auditMarkup(entries) {
+  if (!entries || !entries.length) return '<p class="hint">No host actions recorded yet.</p>';
+  const items = entries.slice().reverse().slice(0, 60).map((entry) => `
+    <li><span>${esc(entry.text)}</span>${entry.t ? `<time>${esc(fmtAgo(entry.t))}</time>` : ''}</li>`).join('');
+  return `<ul class="audit">${items}</ul>`;
+}
+
+function statMarkup(value, label) {
+  return `<div class="stat"><b>${esc(value)}</b><span>${esc(label)}</span></div>`;
+}
+
+function roundClockText(s = state) {
+  if (!s.startedAt) return 'Not started';
+  if (s.phase === 'over') return 'Round ended';
+  const left = s.startedAt + ROUND_MS - Date.now();
+  if (left <= 0) return 'Time is up';
+  return `${fmtRoundLeft(left)} left`;
+}
+
+function roundClockMarkup(s = state) {
+  if (!s.startedAt) return '';
+  const ends = s.startedAt + ROUND_MS;
+  const left = ends - Date.now();
+  const fraction = s.phase === 'over' ? 0 : Math.max(0, Math.min(1, left / ROUND_MS));
+  const tone = s.phase === 'over' ? 'pill-out' : left <= 0 ? 'pill-blood' : 'pill-ok';
+  return `<div class="round-clock">
+    <div class="clock-top">
+      <div>
+        <div class="clock-label">Round ${s.round || 1} timer</div>
+        <b class="clock-left round-live" data-round-countdown>${esc(roundClockText(s))}</b>
+      </div>
+      <span class="pill ${tone}">${s.phase === 'over' ? 'Final' : '14-day round'}</span>
+    </div>
+    <div class="round-track" aria-hidden="true"><span data-round-bar style="transform:scaleX(${fraction})"></span></div>
+    <div class="clock-meta">
+      <span>Started <b>${esc(fmtDateTime(s.startedAt))}</b></span>
+      <span>Ends <b>${esc(fmtDateTime(ends))}</b></span>
+    </div>
+  </div>`;
+}
+
+function roundClockInline(s = state) {
+  if (!s.startedAt) return '';
+  return `<p class="muted">Round ${s.round || 1} · <span class="round-live" data-round-countdown>${esc(roundClockText(s))}</span> · Ends ${esc(fmtDateTime(s.startedAt + ROUND_MS))}</p>`;
+}
+
+function roundStartField(value, label = 'Round start date & time') {
+  const ts = Number(value) > 0 ? Number(value) : Date.now();
+  return `<label class="label" for="roundStart">${esc(label)}</label>
+    <input id="roundStart" class="input" type="datetime-local" data-round-start value="${toDateTimeInput(ts)}">
+    <p class="hint">The round lasts 14 days. Ends <b data-round-end-preview>${esc(fmtDateTime(ts + ROUND_MS))}</b>.</p>`;
+}
+
+function historyMarkup(s = state) {
+  const records = (s.history || []).slice().reverse();
+  if (!records.length) {
+    return '<p class="hint">No completed rounds yet. Eliminations and winners are saved here when a round ends.</p>';
+  }
+  return `<div class="history">${records.map((entry) => {
+    const reason = entry.reason === 'host' ? 'Ended by host'
+      : entry.reason === 'abandoned' ? 'Returned to setup'
+        : entry.reason === 'last' ? 'Last one standing'
+          : '';
+    const kills = entry.eliminations || [];
+    return `<article class="history-round">
+      <div class="history-head">
+        <div>
+          <div class="history-title">Round ${esc(entry.round)}</div>
+          <span class="history-meta">${entry.startedAt ? `Started ${esc(fmtDateTime(entry.startedAt))}` : 'Start time not recorded'}${entry.endedAt ? ` · Ended ${esc(fmtDateTime(entry.endedAt))}` : ''}${reason ? ` · ${esc(reason)}` : ''}</span>
+        </div>
+        ${entry.winnerName
+          ? `<span class="pill pill-warn">★ ${esc(entry.winnerName)}</span>`
+          : '<span class="pill pill-out">No winner</span>'}
+      </div>
+      ${kills.length
+        ? `<ul class="history-kills">${kills.map((kill) => `<li><span>${esc(kill.text)}</span><time>${kill.t ? esc(fmtClock(kill.t)) : ''}</time></li>`).join('')}</ul>`
+        : '<p class="hint">No eliminations recorded.</p>'}
+    </article>`;
+  }).join('')}</div>`;
+}
+
+function historyCardMarkup(s = state) {
+  const count = (s.history || []).length;
+  return `<details class="card details-card">
+    <summary>Game history ${count ? `<span class="pill pill-mono">${count}</span>` : ''}</summary>
+    <div class="details-body">${historyMarkup(s)}</div>
+  </details>`;
+}
+
+/* =========================================================
+   12. Landing and host unlock
+   ========================================================= */
+function viewLanding() {
+  const ps = state.players;
+  const me = ui.me ? byId(ui.me) : null;
+  const registered = ps.filter((p) => p.pin).length;
+  const alive = alivePlayers().length;
+  const winner = gameWinner();
+
+  let strip = '';
+  if (ps.length) {
+    const detail = state.phase === 'setup'
+      ? `${ps.length} player${ps.length === 1 ? '' : 's'} · ${registered} registered`
+      : state.phase === 'over'
+        ? (winner ? `Winner: ${esc(winner.name)}` : 'Round complete')
+        : `Round ${state.round || 1} · ${alive} alive of ${ps.length}${state.startedAt ? ` · ${roundClockText()}` : ''}`;
+    strip = `<div class="strip">
+      <span class="dot ${state.phase === 'setup' ? 'dot-waiting' : state.phase === 'over' ? 'dot-out' : 'dot-alive'}"></span>
+      <span>A game is saved on this device</span>
+      <span class="tab-spacer"></span>
+      <b>${detail}</b>
+    </div>`;
+  }
+
+  $('#view').innerHTML = `
+    ${HAS_CRYPTO ? '' : `<div class="callout callout-danger">This browser does not expose Web Crypto. Open the file directly or serve it over <b>https://</b> or <b>localhost</b>; otherwise PINs cannot be hashed.</div>`}
+    ${strip}
+    <div class="choice-grid">
+      <button type="button" class="card choice" data-go="host">
+        <div class="choice-kicker">Restricted</div>
+        <div class="choice-title">Host</div>
+        <p class="choice-text">Run the roster, start the round, and manage PIN resets. Requires the master key.</p>
+      </button>
+      <button type="button" class="card choice" data-go="player">
+        <div class="choice-kicker open">Open</div>
+        <div class="choice-title">Player</div>
+        <p class="choice-text">Register, reveal your target, and report an elimination. Your PIN keeps it private.</p>
+      </button>
+    </div>
+    ${me ? `<button type="button" class="btn btn-ghost btn-block" data-go="continue" style="margin-top:14px">Continue as ${esc(me.name)}</button>` : ''}
+    <p class="note">Game data is shared through Supabase in real time. Clearing one device does not erase the shared game.</p>`;
+}
+
+function viewHostKey() {
+  const left = guard('host');
+  $('#view').innerHTML = `
+    <section class="card">
+      <h2>Host access</h2>
+      <p class="muted">Enter the master key to manage the player pool and generate assignments.</p>
+      <form data-form="hostkey" autocomplete="off">
+        <label class="label" for="hostKey">Master key</label>
+        <div class="input-group">
+          <input id="hostKey" class="input" type="password" maxlength="200" autocomplete="off"
+            autocapitalize="off" spellcheck="false" placeholder="Master key">
+          <button type="button" class="btn btn-ghost" data-act="toggle-pin" data-target="hostKey">Show</button>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit" style="margin-top:14px" ${left ? 'disabled' : ''}>Unlock</button>
+        <p class="err" id="hostErr" role="alert">${left ? `Locked. Try again in ${fmtSecs(left)}.` : ''}</p>
+      </form>
+      <button type="button" class="link" data-go="landing" style="margin-top:8px">← Back</button>
+    </section>`;
+  const field = $('#hostKey');
+  if (field) field.focus();
+}
+
+/* =========================================================
+   13. Host: player pool
+   ========================================================= */
+function viewRoster() {
+  if (!isHost()) {
+    logout();
+    return;
+  }
+  const ps = state.players;
+  const setup = state.phase === 'setup';
+  const playing = state.phase === 'playing';
+  const over = state.phase === 'over';
+  const unreg = ps.filter((p) => !p.pin).length;
+  const registered = ps.length - unreg;
+  const alive = alivePlayers().length;
+  const out = ps.filter((p) => p.status === 'out').length;
+  const waiting = ps.filter((p) => p.status === 'waiting').length;
+  const winner = gameWinner();
+  const canGen = setup && ps.length >= MIN_PLAYERS && unreg === 0 && HAS_CRYPTO;
+  const canNewRound = over && ps.length >= MIN_PLAYERS && ps.every((p) => p.pin) && HAS_CRYPTO;
+  const lastUndo = ui.undo[ui.undo.length - 1];
+  const me = ui.me ? byId(ui.me) : null;
+
+  const addCard = over ? '' : `
+    <section class="card">
+      <div class="card-head">
+        <h2>${setup ? 'Build the player pool' : 'Add a player'}</h2>
+        <span class="pill pill-mono">${ps.length}/${MAX_PLAYERS}</span>
+      </div>
+      <p class="muted">${setup
+        ? `Add at least ${MIN_PLAYERS} names. Everyone must register a PIN on the Join tab before you generate assignments.`
+        : 'New players get a one-time registration code, then you can add them at a random point in the chain.'}</p>
+      <form data-form="add" autocomplete="off">
+        <div class="row-start">
+          <label class="sr-only" for="nameIn">Player name</label>
+          <input id="nameIn" class="input" maxlength="${MAX_NAME}" placeholder="Player name"
+            autocomplete="off" autocapitalize="words" spellcheck="false">
+          <button class="btn btn-primary" type="submit">Add</button>
+        </div>
+      </form>
+      <details class="disclosure">
+        <summary>Paste a list instead</summary>
+        <div class="disclosure-body">
+          <form data-form="bulk">
+            <label class="sr-only" for="bulkNames">Names, one per line</label>
+            <textarea id="bulkNames" class="input" rows="5" placeholder="Alex Kim&#10;Jordan Lee&#10;Sam Patel"></textarea>
+            <button class="btn btn-ghost btn-sm" type="submit" style="margin-top:8px">Add all</button>
+          </form>
+        </div>
+      </details>
+    </section>`;
+
+  const rows = ps.map((p) => {
+    const isOut = p.status === 'out';
+    const isWaiting = p.status === 'waiting';
+    const actions = [
+      `<button type="button" class="mini" data-act="rename" data-id="${p.id}">Rename</button>`,
+      (!over && p.pin && !isOut) ? `<button type="button" class="mini" data-act="resetpin" data-id="${p.id}">Reset PIN</button>` : '',
+      (playing && isWaiting && p.pin) ? `<button type="button" class="mini" data-act="join" data-id="${p.id}">Add to game</button>` : '',
+      !isOut && !over ? `<button type="button" class="mini mini-danger" data-act="remove" data-id="${p.id}">Remove</button>` : ''
+    ].join('');
+    return `<li class="player-row ${p.status}">
+      <div class="player-top">
+        <span class="player-name">${esc(p.name)}${me && me.id === p.id ? '<span class="you">you</span>' : ''}</span>
+        ${statusPill(p.status)}
+        <span class="pill ${p.pin ? 'pill-ok' : 'pill-warn'}">${p.pin ? 'PIN set' : 'No PIN'}</span>
+        ${setup ? '' : `<span class="pill pill-mono" title="Eliminations">☠ ${p.kills || 0}</span>`}
+      </div>
+      <div class="actions">${actions}</div>
+    </li>`;
+  }).join('');
+
+  const generationCard = `
+    <section class="card">
+      <div class="card-head">
+        <h2>${over ? 'Round complete' : setup ? 'Start the round' : 'Round in progress'}</h2>
+        <span class="pill pill-mono">${setup ? 'Setup' : `Round ${state.round || 1}`}</span>
+      </div>
+      ${setup ? `
+        <p class="muted">Assignments use the browser's secure random generator, then the app verifies that the result is one single chain.</p>
+        <div class="stats">
+          ${statMarkup(ps.length, 'players')}
+          ${statMarkup(registered, 'registered')}
+          ${statMarkup(unreg, 'to go')}
+        </div>
+        <div class="callout ${unreg || ps.length < MIN_PLAYERS ? 'callout-warn' : 'callout-ok'}">
+          ${ps.length < MIN_PLAYERS
+            ? `Add at least ${MIN_PLAYERS} players so nobody is forced into a mutual target.`
+            : unreg
+              ? `${unreg} player${unreg === 1 ? '' : 's'} still need a PIN. Exit the host console, then use Player → Join.`
+              : 'Everyone is registered. The app never displays the full chain on screen.'}
+        </div>
+        <div class="field">${roundStartField(Date.now())}</div>
+        <button type="button" class="btn btn-primary btn-block" data-act="generate" style="margin-top:14px" ${canGen ? '' : 'disabled'}>Generate assignments</button>
+        <p class="hint">Once generated, the roster locks and each player can reveal only their own target with their PIN.</p>`
+      : over ? `
+        ${winner
+          ? `<div class="winner"><div class="winner-kicker">Round winner</div><div class="winner-name">${esc(winner.name)}</div></div>`
+          : '<p class="muted">No winner is recorded for this round. You can restart with the same roster.</p>'}
+        ${roundClockMarkup(state)}
+        <div class="field">${roundStartField(Date.now(), 'Next round start date & time')}</div>
+        <div class="row" style="margin-top:16px">
+          <button type="button" class="btn btn-primary" data-act="newround" ${canNewRound ? '' : 'disabled'}>New round</button>
+          <button type="button" class="btn btn-ghost" data-act="backsetup">Edit roster</button>
+        </div>
+        <p class="hint">${canNewRound
+          ? 'A new round reshuffles the same registered players and keeps their PINs.'
+          : `All ${MIN_PLAYERS}+ players need a PIN before a new round can start.`}</p>`
+      : `
+        <p class="muted">Round ${state.round || 1} · started ${state.startedAt ? fmtAgoLong(state.startedAt) : 'recently'}.</p>
+        <div class="stats">
+          ${statMarkup(alive, 'alive')}
+          ${statMarkup(out, 'out')}
+          ${statMarkup(waiting, 'waiting')}
+        </div>
+        ${roundClockMarkup(state)}
+        <div class="callout">New players added mid-round get a code. Once they register, use <b>Add to game</b> on their row to insert them at a random point in the chain.</div>`}
+    </section>`;
+
+  const roundControlCard = playing ? `
+    <section class="card">
+      <div class="card-head">
+        <h2>Round controls</h2>
+        <span class="pill pill-mono">Round ${state.round || 1}</span>
+      </div>
+      <p class="muted">Set the exact date and time the round began. The deadline is always calculated as 14 days later.</p>
+      <form data-form="roundclock">
+        <div class="field">${roundStartField(state.startedAt)}</div>
+        <button class="btn btn-ghost btn-sm" type="submit" style="margin-top:10px">Update start time</button>
+        <p class="err" id="roundClockErr" role="alert"></p>
+      </form>
+      <div class="row" style="margin-top:16px">
+        <button type="button" class="btn btn-danger" data-act="endround">End round</button>
+        <button type="button" class="btn btn-ghost" data-act="reset">Reset everything</button>
+      </div>
+      <p class="hint">Ending early records the current leader as the winner. A tie ends the round without a winner.</p>
+    </section>` : '';
+
+  $('#view').innerHTML = `
+    <div class="stack">
+      ${addCard}
+      <section class="card">
+        <div class="card-head">
+          <h3>Player pool <span class="muted" style="font-weight:400">(${ps.length})</span></h3>
+          ${setup && ps.length ? '<button type="button" class="link" data-act="clear">Clear all</button>' : ''}
+        </div>
+        ${ps.length ? `<ul class="list">${rows}</ul>` : '<p class="empty">No players yet. Add the first name above.</p>'}
+      </section>
+      ${generationCard}
+      ${roundControlCard}
+      ${historyCardMarkup(state)}
+      <details class="card details-card">
+        <summary>Backup &amp; advanced</summary>
+        <div class="details-body">
+          <div class="row">
+            <button type="button" class="btn btn-ghost btn-sm" data-act="export">Download backup</button>
+            <label class="btn btn-ghost btn-sm file-btn">Restore backup
+              <input type="file" id="importFile" accept=".json,application/json">
+            </label>
+            ${lastUndo ? `<button type="button" class="btn btn-ghost btn-sm" data-act="undo">Undo: ${esc(lastUndo.label)}</button>` : ''}
+            <button type="button" class="btn btn-ghost btn-sm" data-act="unlockall">Clear lockouts</button>
+            <button type="button" class="btn btn-danger btn-sm" data-act="reset">Reset everything</button>
+          </div>
+          <p class="hint">A backup contains PIN hashes, players, history and the round clock. Keep it private. Restoring replaces the current game on this device.</p>
+          <p class="hint">Version ${APP_VERSION} · state is shared through Supabase</p>
+        </div>
+      </details>
+    </div>`;
+}
+
+/* =========================================================
+   14. Shared status view
+   ========================================================= */
+function viewStatus() {
+  const host = isHost();
+  const ps = state.players;
+  const alive = alivePlayers().length;
+  const out = ps.filter((p) => p.status === 'out').length;
+  const waiting = ps.filter((p) => p.status === 'waiting').length;
+  const registered = ps.filter((p) => p.pin).length;
+  const setup = state.phase === 'setup';
+  const me = ui.me ? byId(ui.me) : null;
+  const winner = gameWinner();
+  const wins = winCounts();
+  const healthy = chainOk();
+  const sorted = ps.slice().sort((a, b) => (b.kills || 0) - (a.kills || 0) || a.name.localeCompare(b.name));
+
+  let meNote = '';
+  if (!host && me) {
+    if (!me.pin) {
+      meNote = `<div class="you-note">You have not registered a PIN yet. <button type="button" class="link" data-act="goto" data-tab="join">Register now</button></div>`;
+    } else if (state.phase === 'over') {
+      meNote = `<div class="you-note">This round is over. ${winner && winner.id === me.id ? 'You won this round.' : 'Wait for the host to start the next round.'}</div>`;
+    } else if (me.status === 'waiting') {
+      meNote = `<div class="you-note">You are registered. ${state.phase === 'playing' ? 'The host still needs to add you to the chain.' : 'The round has not started yet.'}</div>`;
+    } else if (me.status === 'out') {
+      meNote = `<div class="you-note">You are out of this round. You can still watch the kill feed.</div>`;
+    } else {
+      meNote = `<div class="you-note">You are alive. Open <b>My target</b> and enter your PIN to see who you are hunting.</div>`;
+    }
+  }
+
+  const rows = sorted.length ? sorted.map((p) => `
+    <li class="player-row ${p.status}">
+      <div class="player-top">
+        <span class="player-name">${esc(p.name)}${me && me.id === p.id ? '<span class="you">you</span>' : ''}</span>
+        ${statusPill(p.status)}
+        ${host ? `<span class="pill ${p.pin ? 'pill-ok' : 'pill-warn'}">${p.pin ? 'PIN set' : 'No PIN'}</span>` : ''}
+        <span class="pill ${wins.get(p.id) ? 'pill-warn' : 'pill-mono'}" title="Rounds won">★ ${winLabel(wins.get(p.id) || 0)}</span>
+        ${setup ? '' : `<span class="pill pill-mono" title="Eliminations">☠ ${p.kills || 0}</span>`}
+      </div>
+    </li>`).join('') : '';
+
+  $('#view').innerHTML = `
+    <div class="stack">
+      <section class="card">
+        <div class="card-head">
+          <h2>${state.phase === 'over' ? 'Game over' : setup ? 'Waiting to start' : 'Game in progress'}</h2>
+          ${setup ? '' : `<span class="pill ${healthy ? 'pill-ok' : 'pill-blood'}">${healthy ? '✓ Chain verified' : '⚠ Chain error'}</span>`}
+        </div>
+        <p class="muted">${setup
+          ? 'The host builds the pool. Everyone registers a PIN before assignments are generated.'
+          : `Round ${state.round || 1}${state.startedAt ? ` · started ${fmtAgoLong(state.startedAt)}` : ''}`}</p>
+        ${roundClockMarkup(state)}
+        <div class="stats">
+          ${setup
+            ? statMarkup(ps.length, 'players') + statMarkup(registered, 'registered') + statMarkup(ps.length - registered, 'to go')
+            : statMarkup(alive, 'alive') + statMarkup(out, 'eliminated') + statMarkup(ps.length, 'players')}
+        </div>
+        ${state.phase !== 'setup' && !healthy ? '<div class="callout callout-danger">The player chain failed its integrity check. Restore a backup or reset the game from the host console.</div>' : ''}
+        ${winner ? `<div class="winner"><div class="winner-kicker">Round winner</div><div class="winner-name">${esc(winner.name)}</div></div>` : ''}
+        ${meNote}
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h3>Players</h3><span class="pill pill-mono">${ps.length}</span></div>
+        ${rows ? `<ul class="list">${rows}</ul>` : '<p class="empty">No players yet.</p>'}
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h3>Kill feed</h3></div>
+        ${feedMarkup(state.log, 'No eliminations yet.')}
+      </section>
+
+      ${historyCardMarkup(state)}
+
+      ${host ? `
+        <details class="card details-card">
+          <summary>Host activity log</summary>
+          <div class="details-body">${auditMarkup(state.audit)}</div>
+        </details>` : ''}
+    </div>`;
+}
+
+/* =========================================================
+   15. Player: join / register
+   ========================================================= */
+function optionMarkup(list, selected, placeholder) {
+  return (placeholder ? `<option value="">${esc(placeholder)}</option>` : '')
+    + list.map((p) => `<option value="${p.id}" ${String(p.id) === String(selected) ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+}
+
+function joinFieldsMarkup(player) {
+  if (!player) return '<p class="hint">Select your name to continue.</p>';
+  return `
+    ${player.tempCode ? `
+      <label class="label" for="joinCode">Registration code from the host</label>
+      <input id="joinCode" class="input code-input" maxlength="9" autocomplete="off"
+        autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX" data-code>` : ''}
+    <label class="label" for="joinPin">Choose a PIN (${MIN_PIN}–${MAX_PIN} digits)</label>
+    <input id="joinPin" class="input pin-input" type="password" inputmode="numeric" maxlength="${MAX_PIN}"
+      autocomplete="off" placeholder="••••" data-pin>
+    <label class="label" for="joinPin2">Confirm PIN</label>
+    <input id="joinPin2" class="input pin-input" type="password" inputmode="numeric" maxlength="${MAX_PIN}"
+      autocomplete="off" placeholder="••••" data-pin>
+    <p class="hint">Register only your own name. The PIN cannot be recovered; the host can issue a reset code.</p>`;
+}
+
+function viewJoin() {
+  const list = joinablePlayers();
+  if (!list.length) {
+    ui.tab = null;
+    render();
+    return;
+  }
+  const selected = list.find((p) => String(p.id) === String(ui.selJoin))
+    || list.find((p) => p.id === ui.me)
+    || null;
+  ui.selJoin = selected ? String(selected.id) : '';
+
+  $('#view').innerHTML = `
+    <section class="card">
+      <h2>Join the game</h2>
+      <p class="muted">Pick your own name and choose a private PIN. You will need it to reveal your target and report eliminations.</p>
+      <form data-form="join" autocomplete="off">
+        <label class="label" for="joinWho">Your name</label>
+        <select id="joinWho" class="input">${optionMarkup(list, ui.selJoin, 'Select name…')}</select>
+        <div id="joinFields">${joinFieldsMarkup(selected)}</div>
+        <button class="btn btn-primary btn-block" type="submit" style="margin-top:16px">Register</button>
+        <p class="err" id="joinErr" role="alert"></p>
+      </form>
+    </section>`;
+
+  const first = selected && selected.tempCode ? $('#joinCode') : $('#joinPin');
+  if (first) first.focus();
+}
+
+function refreshJoinFields() {
+  const list = joinablePlayers();
+  const player = list.find((p) => String(p.id) === String(ui.selJoin)) || null;
+  const box = $('#joinFields');
+  if (box) box.innerHTML = joinFieldsMarkup(player);
+  const err = $('#joinErr');
+  if (err) err.textContent = '';
+  if (player) {
+    const first = player.tempCode ? $('#joinCode') : $('#joinPin');
+    if (first) first.focus();
+  }
+}
+
+/* =========================================================
+   16. Player: reveal
+   ========================================================= */
+function viewReveal() {
+  if (state.phase !== 'playing') {
+    ui.tab = 'status';
+    render();
+    return;
+  }
+  const candidates = alivePlayers();
+  if (!candidates.length) {
+    $('#view').innerHTML = '<section class="card"><h2>My target</h2><p class="muted">There is nobody to reveal right now.</p></section>';
+    return;
+  }
+  let selectedId = candidates.some((p) => String(p.id) === String(ui.selReveal)) ? Number(ui.selReveal) : 0;
+  if (!selectedId && ui.me && candidates.some((p) => p.id === ui.me)) selectedId = ui.me;
+  ui.selReveal = selectedId ? String(selectedId) : '';
+
+  $('#view').innerHTML = `
+    <section class="card">
+      <h2>Reveal my target</h2>
+      <p class="muted">Make sure nobody is looking. The name shows for ${REVEAL_SECS} seconds, then hides automatically.</p>
+      ${roundClockInline(state)}
+      <form data-form="reveal" autocomplete="off">
+        <label class="label" for="revealWho">Your name</label>
+        <select id="revealWho" class="input">${optionMarkup(candidates, ui.selReveal, 'Select name…')}</select>
+        <label class="label" for="revealPin">Your PIN</label>
+        <input id="revealPin" class="input pin-input" type="password" inputmode="numeric"
+          maxlength="${MAX_PIN}" autocomplete="off" placeholder="••••" data-pin>
+        <button class="btn btn-primary btn-block" type="submit" style="margin-top:16px">Reveal</button>
+        <p class="err" id="revealErr" role="alert"></p>
+      </form>
+      <div id="secret"></div>
+      <p class="hint">Eliminated players cannot reveal a target. If your PIN was reset, use the Join tab with the host's code.</p>
+    </section>`;
+
+  if (selectedId) {
+    const pin = $('#revealPin');
+    if (pin) pin.focus();
+  }
+}
+
+/* =========================================================
+   17. Player: elimination
+   ========================================================= */
+function victimOptions(hunterId) {
+  const list = alivePlayers().filter((p) => p.id !== Number(hunterId));
+  return optionMarkup(list, ui.selVictim, 'Select player…');
+}
+
+function viewElim() {
+  if (state.phase !== 'playing') {
+    ui.tab = 'status';
+    render();
+    return;
+  }
+  const alive = alivePlayers();
+  if (alive.length < 2) {
+    $('#view').innerHTML = '<section class="card"><h2>Report an elimination</h2><p class="muted">There is no elimination to report right now.</p></section>';
+    return;
+  }
+
+  let hunterId = alive.some((p) => String(p.id) === String(ui.selHunter)) ? Number(ui.selHunter) : 0;
+  if (!hunterId && ui.me && alive.some((p) => p.id === ui.me)) hunterId = ui.me;
+  ui.selHunter = hunterId ? String(hunterId) : '';
+  const validVictim = alive.some((p) => String(p.id) === String(ui.selVictim) && p.id !== hunterId);
+  ui.selVictim = validVictim ? String(ui.selVictim) : '';
+
+  $('#view').innerHTML = `
+    <section class="card">
+      <h2>Report an elimination</h2>
+      <p class="muted">The assassin enters their own PIN. A claim is accepted only if that player is actually hunting the selected target.</p>
+      ${roundClockInline(state)}
+      <form data-form="elim" autocomplete="off">
+        <label class="label" for="elimHunter">Assassin (who made the elimination)</label>
+        <select id="elimHunter" class="input">${optionMarkup(alive, ui.selHunter, 'Select name…')}</select>
+        <label class="label" for="elimVictim">Eliminated player</label>
+        <select id="elimVictim" class="input">${victimOptions(hunterId)}</select>
+        <label class="label" for="elimPin">Assassin's PIN</label>
+        <input id="elimPin" class="input pin-input" type="password" inputmode="numeric"
+          maxlength="${MAX_PIN}" autocomplete="off" placeholder="••••" data-pin>
+        <button class="btn btn-primary btn-block" type="submit" style="margin-top:16px">Confirm elimination</button>
+        <p class="err" id="elimErr" role="alert"></p>
+      </form>
+      <div id="secret"></div>
+      <p class="hint">After a confirmed elimination the assassin immediately inherits the eliminated player's target.</p>
+    </section>`;
+
+  if (hunterId) {
+    const pin = $('#elimPin');
+    if (pin) pin.focus();
+  }
+}
+
+/* =========================================================
+   18. Render pipeline and navigation
+   ========================================================= */
+function availableTabs() {
+  if (isHost()) return [['roster', 'Players'], ['status', 'Status']];
+  const tabs = [];
+  if (joinablePlayers().length) tabs.push(['join', 'Join']);
+  if (state.phase === 'playing') tabs.push(['reveal', 'My target'], ['elim', 'Elimination']);
+  tabs.push(['status', 'Status']);
+  return tabs;
+}
+
+function renderNav(tabs) {
+  const nav = $('#tabs');
+  if (!nav) return;
+  nav.innerHTML = tabs.map(([key, label]) =>
+    `<button type="button" class="tab" data-tab="${key}" aria-current="${ui.tab === key ? 'page' : 'false'}">${esc(label)}</button>`
+  ).join('')
+    + '<span class="tab-spacer"></span>'
+    + `<button type="button" class="tab-exit" data-act="exit">${isHost() ? 'Lock console' : 'Exit'}</button>`;
+}
+
+function render() {
+  const nav = $('#tabs');
+  const view = $('#view');
+  if (!nav || !view) return;
+  try {
+    cancelSecret();
+    if (ui.stage !== 'app') {
+      nav.hidden = true;
+      nav.innerHTML = '';
+      ui.focusSel = null;
+      if (ui.stage === 'hostkey') viewHostKey();
+      else viewLanding();
+      return;
+    }
+
+    const tabs = availableTabs();
+    if (!tabs.some(([key]) => key === ui.tab)) ui.tab = tabs[0][0];
+    nav.hidden = false;
+    renderNav(tabs);
+
+    const views = {
+      roster: viewRoster,
+      status: viewStatus,
+      join: viewJoin,
+      reveal: viewReveal,
+      elim: viewElim
+    };
+    const draw = views[ui.tab] || viewStatus;
+    draw();
+
+    if (ui.focusSel) {
+      const target = $(ui.focusSel);
+      ui.focusSel = null;
+      if (target) target.focus({ preventScroll: true });
+    } else if (ui.focusView) {
+      ui.focusView = false;
+      view.focus({ preventScroll: true });
+    }
+  } catch (error) {
+    console.error(error);
+    renderError(error);
+  }
+}
+
+function renderError(error) {
+  const nav = $('#tabs');
+  if (nav) nav.hidden = true;
+  const view = $('#view');
+  if (!view) return;
+  view.innerHTML = `
+    <section class="card">
+      <h2>Something went wrong</h2>
+      <p class="muted">The screen could not be drawn. Your saved game has not been changed.</p>
+      <div class="callout callout-danger">${esc(error && error.message ? error.message : error)}</div>
+      <div class="row" style="margin-top:14px">
+        <button type="button" class="btn btn-primary" data-act="reload">Reload</button>
+      </div>
+    </section>`;
+}
+
+function selectTab(tab) {
+  if (!tab) return;
+  if (!availableTabs().some(([key]) => key === tab)) return;
+  if (ui.tab === tab) return;
+  cancelSecret();
+  ui.tab = tab;
+  ui.focusView = true;
+  render();
+  window.scrollTo({ top: 0, behavior: 'auto' });
+}
+
+function logout(message) {
+  closeModal();
+  cancelSecret();
+  ui.stage = 'landing';
+  ui.role = null;
+  ui.tab = null;
+  ui.me = null;
+  ui.selReveal = '';
+  ui.selHunter = '';
+  ui.selVictim = '';
+  ui.selJoin = '';
+  ui.undo = [];
+  ui.idleWarned = false;
+  clearSession();
+  render();
+  if (message) toast(message, 'info');
+}
+
+async function runBusy(button, label, work) {
+  if (ui.busy) return;
+  ui.busy = true;
+  const previous = button ? button.innerHTML : '';
+  if (button) {
+    button.disabled = true;
+    button.classList.add('is-busy');
+    button.textContent = label;
+  }
+  try {
+    await work();
+  } catch (error) {
+    console.error(error);
+    toast(error && error.message ? error.message : 'Something went wrong.', 'error', 6000);
+  } finally {
+    ui.busy = false;
+    if (button && button.isConnected) {
+      button.classList.remove('is-busy');
+      button.innerHTML = previous;
+      button.disabled = button.dataset.lock === '1';
+    }
+  }
+}
+
+/* =========================================================
+   19. Host actions
+   ========================================================= */
+async function handleHostKey(form) {
+  const input = $('#hostKey', form) || $('#hostKey');
+  const err = $('#hostErr');
+  const value = input ? input.value.trim() : '';
+  const left = guard('host');
+  if (left) {
+    if (err) err.textContent = `Too many attempts. Try again in ${fmtSecs(left)}.`;
+    return;
+  }
+  if (!value) {
+    if (err) err.textContent = 'Enter the master key.';
+    if (input) input.focus();
+    return;
+  }
+  if (!HAS_CRYPTO) {
+    if (err) err.textContent = 'Web Crypto is unavailable. Serve the page over https:// or localhost.';
+    return;
+  }
+
+  const button = form.querySelector('button[type="submit"]');
+  await runBusy(button, 'Checking…', async () => {
+    const hash = await kdf(value, HOST_SALT, HOST_ITER);
+    if (HOST_HASHES.some((known) => eq(hash, known))) {
+      await succeed('host');
+      clearSession();
+      ui.stage = 'app';
+      ui.role = 'host';
+      ui.tab = 'roster';
+      ui.me = null;
+      ui.lastActive = Date.now();
+      ui.idleWarned = false;
+      toast('Host console unlocked.', 'ok');
+      render();
+      return;
+    }
+    await fail('host');
+    const locked = guard('host');
+    if (input) {
+      input.value = '';
+      input.focus();
+    }
+    if (err) {
+      err.textContent = locked
+        ? `Wrong key. Locked for ${fmtSecs(locked)}.`
+        : 'Wrong key.';
+    }
+  });
+}
+
+async function addPlayers(rawNames) {
+  if (!isHost() || state.phase === 'over') return;
+  const names = [];
+  const dups = [];
+  for (const raw of rawNames) {
+    const name = cleanName(raw);
+    if (!name) continue;
+    const lower = name.toLowerCase();
+    if (state.players.some((p) => p.name.toLowerCase() === lower)
+      || names.some((n) => n.toLowerCase() === lower)) {
+      if (!dups.includes(name)) dups.push(name);
+      continue;
+    }
+    names.push(name);
+  }
+  if (!names.length) {
+    toast(dups.length ? `Already in the pool: ${dups.join(', ')}` : 'Enter a name first.', 'warn');
+    return;
+  }
+  const room = MAX_PLAYERS - state.players.length;
+  if (room <= 0) {
+    toast(`The pool is limited to ${MAX_PLAYERS} players.`, 'error');
+    return;
+  }
+  const accepted = names.slice(0, room);
+  if (accepted.length < names.length) toast(`Only the first ${accepted.length} names fit.`, 'warn');
+
+  const prepared = [];
+  try {
+    for (const name of accepted) {
+      let code = null;
+      let temp = null;
+      if (state.phase !== 'setup') {
+        code = makeCode();
+        temp = await codeCredential(code);
+      }
+      prepared.push({ name, code, temp });
+    }
+  } catch (error) {
+    console.error(error);
+    toast('Could not create registration codes.', 'error');
+    return;
+  }
+
+  const change = await applyChange((s) => {
+    for (const item of prepared) {
+      s.players.push({
+        id: s.nextId++,
+        name: item.name,
+        status: 'waiting',
+        target: -1,
+        kills: 0,
+        pin: null,
+        tempCode: item.temp,
+        joinedAt: Date.now()
+      });
+      pushAudit(s, `Added ${item.name}`);
+    }
+    return true;
+  }, { undoLabel: `${prepared.length} player${prepared.length === 1 ? '' : 's'} added` });
+
+  if (!change.ok) {
+    toast(change.error || 'Could not add players.', 'error');
+    return;
+  }
+
+  const codes = prepared.filter((item) => item.code).map((item) => [item.name, item.code]);
+  toast(
+    `${prepared.length} player${prepared.length === 1 ? '' : 's'} added`
+      + (dups.length ? ` · skipped ${dups.length} duplicate${dups.length === 1 ? '' : 's'}` : '') + '.',
+    dups.length ? 'warn' : 'ok'
+  );
+  ui.focusSel = '#nameIn';
+  render();
+  if (codes.length) await showCodes(codes);
+}
+
+async function renamePlayer(player) {
+  if (!isHost() || !player) return;
+  const value = await promptDialog(`Rename ${player.name}`, 'Display name', {
+    value: player.name,
+    maxLength: MAX_NAME,
+    okLabel: 'Save',
+    validate: (input) => {
+      const name = cleanName(input);
+      if (!name) return 'Enter a name.';
+      if (state.players.some((p) => p.id !== player.id && p.name.toLowerCase() === name.toLowerCase())) {
+        return 'That name is already in the pool.';
+      }
+      return null;
+    }
+  });
+  if (value === null) return;
+  const name = cleanName(value);
+  if (!name || name === player.name) return;
+
+  const oldName = player.name;
+  const change = await applyChange((s) => {
+    const target = s.players.find((p) => p.id === player.id);
+    if (!target) return false;
+    target.name = name;
+    pushAudit(s, `Renamed ${oldName} to ${name}`);
+    return true;
+  }, { undoLabel: `Rename ${oldName}` });
+  if (!change.ok) {
+    toast(change.error || 'Could not rename that player.', 'error');
+    return;
+  }
+  toast('Name updated.', 'ok');
+  render();
+}
+
+async function resetPlayerPin(player) {
+  if (!isHost() || !player || state.phase === 'over') return;
+  const ok = await confirmDialog(
+    'Reset PIN',
+    `Reset <b>${esc(player.name)}</b>'s PIN? ${state.phase === 'setup'
+      ? 'They will be able to register a new one on the Join tab.'
+      : 'You will get a one-time code to give them.'}`,
+    { okLabel: 'Reset PIN', danger: true }
+  );
+  if (!ok) return;
+
+  let code = null;
+  let temp = null;
+  if (state.phase !== 'setup') {
+    try {
+      code = makeCode();
+      temp = await codeCredential(code);
+    } catch (error) {
+      console.error(error);
+      toast('Could not create a registration code.', 'error');
+      return;
+    }
+  }
+
+  const change = await applyChange((s) => {
+    const target = s.players.find((p) => p.id === player.id);
+    if (!target) return false;
+    target.pin = null;
+    if (temp) target.tempCode = temp;
+    else delete target.tempCode;
+    delete s.locks['p' + target.id];
+    delete s.locks['r' + target.id];
+    pushAudit(s, `Reset PIN for ${target.name}${code ? ' (code issued)' : ''}`);
+    return true;
+  }, { undoLabel: `Reset PIN: ${player.name}` });
+  if (!change.ok) {
+    toast(change.error || 'Could not reset that PIN.', 'error');
+    return;
+  }
+  render();
+  if (code) await showCodes([[player.name, code]]);
+  else toast(`${player.name} can register a new PIN on the Join tab.`, 'ok');
+}
+
+async function removePlayer(player) {
+  if (!isHost() || !player) return;
+  const isAlive = player.status === 'alive';
+  if (isAlive) {
+    const hunter = state.players.find((p) => p.status === 'alive' && p.target === player.id);
+    if (!hunter) {
+      toast('That player is not part of a valid chain, so they cannot be removed safely.', 'error');
+      return;
+    }
+  }
+  const ok = await confirmDialog(
+    'Remove player',
+    isAlive
+      ? `Remove <b>${esc(player.name)}</b> from the game? Their hunter immediately inherits their target.`
+      : `Remove <b>${esc(player.name)}</b> from the player pool?`,
+    { okLabel: 'Remove', danger: true }
+  );
+  if (!ok) return;
+
+  const change = await applyChange((s) => {
+    if (!isAlive) {
+      const index = s.players.findIndex((p) => p.id === player.id);
+      if (index < 0) return false;
+      const [gone] = s.players.splice(index, 1);
+      pushAudit(s, `Removed ${gone.name} from the pool`);
+      return true;
+    }
+    const X = s.players.find((p) => p.id === player.id);
+    if (!X) return false;
+    if (X.status !== 'alive') return false;
+    const hunter = s.players.find((p) => p.status === 'alive' && p.target === X.id);
+    if (!hunter) return false;
+    hunter.target = X.target;
+    X.status = 'out';
+    X.target = -1;
+    pushLog(s, `${X.name} was removed from the game`, 'host');
+    pushAudit(s, `Removed ${X.name}; ${hunter.name} inherited their target`);
+    if (alivePlayers(s).length <= 1) finishRound(s, 'last');
+    return true;
+  }, { undoLabel: `Remove ${player.name}` });
+
+  if (!change.ok) {
+    toast(change.error || 'Could not remove that player.', 'error');
+    return;
+  }
+  toast('Player removed.', 'ok');
+  render();
+}
+
+async function addToGame(player) {
+  if (!isHost() || !player || state.phase !== 'playing') return;
+  if (player.status !== 'waiting' || !player.pin) return;
+  const ok = await confirmDialog(
+    'Add to game',
+    `Add <b>${esc(player.name)}</b> to the chain at a random position? They become alive immediately.`,
+    { okLabel: 'Add to game' }
+  );
+  if (!ok) return;
+
+  const change = await applyChange((s) => {
+    const N = s.players.find((p) => p.id === player.id);
+    if (!N || N.status !== 'waiting') return false;
+    const living = s.players.filter((p) => p.status === 'alive');
+    if (!living.length) return false;
+    const A = living[secureInt(living.length)];
+    N.target = A.target;
+    A.target = N.id;
+    N.status = 'alive';
+    N.kills = 0;
+    pushLog(s, `${N.name} joined the game`, 'join');
+    pushAudit(s, `Added ${N.name} to the chain after ${A.name}`);
+    return true;
+  }, { undoLabel: `Add ${player.name} to game` });
+
+  if (!change.ok) {
+    toast(change.error || 'Could not add that player to the chain.', 'error');
+    return;
+  }
+  toast(`${player.name} is in the game.`, 'ok');
+  render();
+}
+
+async function startRound(isNewRound) {
+  if (!isHost()) return;
+  if (!HAS_CRYPTO) {
+    toast('Web Crypto is unavailable, so assignments cannot be generated.', 'error');
+    return;
+  }
+  if (isNewRound ? state.phase !== 'over' : state.phase !== 'setup') return;
+  const players = state.players;
+  if (players.length < MIN_PLAYERS) {
+    toast(`Add at least ${MIN_PLAYERS} players first.`, 'warn');
+    return;
+  }
+  if (players.some((p) => !p.pin)) {
+    toast('Every player needs a registered PIN first.', 'warn');
+    return;
+  }
+
+  const field = $('#roundStart');
+  const startTs = field ? new Date(field.value).getTime() : Date.now();
+  if (!Number.isFinite(startTs)) {
+    toast('Enter a valid start date and time.', 'warn');
+    return;
+  }
+  if (startTs > Date.now() + 60000) {
+    toast('The start time cannot be in the future.', 'warn');
+    return;
+  }
+
+  const roundNo = (state.round || 0) + 1;
+  const ok = await confirmDialog(
+    isNewRound ? 'Start a new round' : 'Generate assignments',
+    `${isNewRound
+      ? `Reshuffle the same <b>${players.length}</b> players and start round <b>${roundNo}</b>?`
+      : `Generate assignments for <b>${players.length}</b> players? The pool locks and everyone becomes alive.`}
+      <br><br>Starts <b>${esc(fmtDateTime(startTs))}</b><br>Ends <b>${esc(fmtDateTime(startTs + ROUND_MS))}</b>`,
+    { okLabel: isNewRound ? 'Start round' : 'Generate' }
+  );
+  if (!ok) return;
+
+  const order = shuffle(players.map((p) => p.id));
+  const targetById = new Map(order.map((id, index) => [id, order[(index + 1) % order.length]]));
+  const draft = players.map((p) => ({ ...p, status: 'alive', target: targetById.get(p.id), kills: 0 }));
+  if (!verifyChain(draft, true)) {
+    toast('Could not build a valid chain. Please try again.', 'error');
+    return;
+  }
+
+  const change = await applyChange((s) => {
+    if (s.phase === 'over') recordRoundHistory(s, 'archive');
+    s.phase = 'playing';
+    s.round = roundNo;
+    s.startedAt = startTs;
+    s.endedAt = 0;
+    s.log = [];
+    for (const p of s.players) {
+      p.status = 'alive';
+      p.target = targetById.get(p.id);
+      p.kills = 0;
+    }
+    pushLog(s, `Round ${roundNo} began`, 'round');
+    pushAudit(s, `Round ${roundNo} started with ${s.players.length} players`);
+    return true;
+  }, { undoLabel: `Start round ${roundNo}` });
+
+  if (!change.ok) {
+    toast(change.error || 'Could not start the round.', 'error');
+    return;
+  }
+  ui.selReveal = '';
+  ui.selHunter = '';
+  ui.selVictim = '';
+  ui.tab = 'status';
+  toast(`Round ${roundNo} started. Targets are secret.`, 'ok');
+  render();
+}
+
+async function saveRoundStart(form) {
+  if (!isHost() || state.phase !== 'playing') return;
+  const err = $('#roundClockErr', form) || $('#roundClockErr');
+  const field = $('#roundStart', form) || $('#roundStart');
+  const ts = field ? new Date(field.value).getTime() : NaN;
+  if (!Number.isFinite(ts)) {
+    if (err) err.textContent = 'Enter a valid start date and time.';
+    return;
+  }
+  if (ts > Date.now() + 60000) {
+    if (err) err.textContent = 'The start time cannot be in the future.';
+    return;
+  }
+  if (Math.abs(ts - state.startedAt) < 1000) {
+    if (err) err.textContent = 'That is already the recorded start time.';
+    return;
+  }
+  if (err) err.textContent = '';
+  const change = await applyChange((s) => {
+    s.startedAt = ts;
+    pushAudit(s, `Round ${s.round} start set to ${new Date(ts).toLocaleString()}`);
+    return true;
+  }, { undoLabel: 'Update round start' });
+  if (!change.ok) {
+    if (err) err.textContent = change.error || 'Could not save the start time.';
+    return;
+  }
+  toast(`Start time saved. The round ends ${fmtDateTime(ts + ROUND_MS)}.`, 'ok');
+  render();
+}
+
+async function endRound() {
+  if (!isHost() || state.phase !== 'playing') return;
+  const winner = roundWinner(state);
+  const ok = await confirmDialog(
+    'End round',
+    winner
+      ? `<b>${esc(winner.name)}</b> will be recorded as the winner of round <b>${state.round || 1}</b>.<br><br>Every elimination is archived in the game history and the targets are cleared.`
+      : `No unique leader is alive, so round <b>${state.round || 1}</b> will end without a winner.<br><br>Eliminations are still archived in the game history.`,
+    { okLabel: 'End round', danger: true }
+  );
+  if (!ok) return;
+  const change = await applyChange((s) => {
+    finishRound(s, 'host');
+    return true;
+  }, { undoLabel: `End round ${state.round || 1}` });
+  if (!change.ok) {
+    toast(change.error || 'Could not end the round.', 'error');
+    return;
+  }
+  toast(winner ? `Round over. ${winner.name} wins.` : 'Round over. No winner.', 'ok');
+  render();
+}
+
+async function backToSetup() {
+  if (!isHost()) return;
+  const ok = await confirmDialog(
+    'Edit roster',
+    'Return to setup? All targets are cleared and every player becomes waiting. PINs are kept.',
+    { okLabel: 'Return to setup', danger: true }
+  );
+  if (!ok) return;
+  const change = await applyChange((s) => {
+    if (s.phase === 'playing') recordRoundHistory(s, 'abandoned');
+    else if (s.phase === 'over') recordRoundHistory(s, 'archive');
+    s.phase = 'setup';
+    s.startedAt = 0;
+    s.endedAt = 0;
+    s.log = [];
+    for (const p of s.players) {
+      p.status = 'waiting';
+      p.target = -1;
+      p.kills = 0;
+    }
+    pushAudit(s, 'Returned the game to setup');
+    return true;
+  }, { undoLabel: 'Return to setup' });
+  if (!change.ok) {
+    toast(change.error || 'Could not return to setup.', 'error');
+    return;
+  }
+  ui.tab = 'roster';
+  toast('Back in setup. Targets cleared.', 'ok');
+  render();
+}
+
+async function clearPool() {
+  if (!isHost() || state.phase !== 'setup') return;
+  const ok = await confirmDialog(
+    'Clear player pool',
+    'Remove every player from the pool? This also removes their saved PINs.',
+    { okLabel: 'Clear pool', danger: true }
+  );
+  if (!ok) return;
+  const change = await applyChange((s) => {
+    s.players = [];
+    s.nextId = 1;
+    s.log = [];
+    for (const key of Object.keys(s.locks)) {
+      if (/^[pr]\d+$/.test(key)) delete s.locks[key];
+    }
+    pushAudit(s, 'Cleared the player pool');
+    return true;
+  }, { undoLabel: 'Clear player pool' });
+  if (!change.ok) {
+    toast(change.error || 'Could not clear the pool.', 'error');
+    return;
+  }
+  toast('Player pool cleared.', 'ok');
+  render();
+}
+
+async function resetGame() {
+  if (!isHost()) return;
+  const typed = await promptDialog('Reset game', 'Type ERASE to confirm', {
+    body: 'This removes all players, assignments, PINs, round history and logs for everyone. It cannot be undone.',
+    okLabel: 'Erase everything',
+    maxLength: 10,
+    validate: (value) => value.trim().toUpperCase() === 'ERASE' ? null : 'Type ERASE in capitals to confirm.'
+  });
+  if (typed === null) return;
+  await replaceState(blankState());
+  ui.undo = [];
+  ui.me = null;
+  ui.selReveal = '';
+  ui.selHunter = '';
+  ui.selVictim = '';
+  ui.selJoin = '';
+  ui.tab = 'roster';
+  clearSession();
+  toast('Game reset.', 'ok');
+  render();
+}
+
+function exportBackup() {
+  const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+  const ok = downloadText(`senior-assassin-backup-${stamp}.json`, JSON.stringify(state, null, 2));
+  toast(ok ? 'Backup downloaded. Keep it private.' : 'Could not download the backup.', ok ? 'ok' : 'error');
+}
+
+async function importBackup(file) {
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    toast('That file is too large to be a backup.', 'error');
+    return;
+  }
+  let text = '';
+  try {
+    text = await file.text();
+  } catch (error) {
+    console.error(error);
+    toast('Could not read that file.', 'error');
+    return;
+  }
+  let parsed = null;
+  try { parsed = JSON.parse(text); } catch { parsed = null; }
+  const next = normalizeState(parsed);
+  if (!next) {
+    toast('That is not a valid Senior Assassin backup.', 'error');
+    return;
+  }
+  const seen = new Set();
+  for (const player of next.players) {
+    const key = player.name.toLowerCase();
+    if (seen.has(key)) {
+      toast('The backup contains duplicate player names.', 'error');
+      return;
+    }
+    seen.add(key);
+  }
+  if (next.phase === 'playing' && alivePlayers(next).length >= 2 && !verifyChain(alivePlayers(next), false)) {
+    toast('The backup has a broken target chain and was not restored.', 'error');
+    return;
+  }
+  if (next.phase === 'playing' && alivePlayers(next).length <= 1 && next.players.length > 1) {
+    next.phase = 'over';
+    next.endedAt = next.endedAt || Date.now();
+    recordRoundHistory(next, 'import');
+  }
+
+  const ok = await confirmDialog(
+    'Restore backup',
+    `Replace the current game with this backup?<br><br><b>${next.players.length}</b> player${next.players.length === 1 ? '' : 's'} · ${esc(PHASE_LABEL[next.phase])}${next.round ? ` · round ${next.round}` : ''}`,
+    { okLabel: 'Restore', danger: true }
+  );
+  if (!ok) return;
+
+  next.locks = JSON.parse(JSON.stringify(state.locks || {}));
+  await replaceState(next);
+  ui.undo = [];
+  ui.me = null;
+  ui.selReveal = '';
+  ui.selHunter = '';
+  ui.selVictim = '';
+  ui.selJoin = '';
+  ui.tab = 'roster';
+  clearSession();
+  toast('Backup restored.', 'ok');
+  render();
+}
+
+async function handleUndo() {
+  const entry = ui.undo[ui.undo.length - 1];
+  if (!entry) return;
+  const ok = await confirmDialog(
+    'Undo last change',
+    `Undo <b>${esc(entry.label)}</b>? The game will return to how it was just before that action.`,
+    { okLabel: 'Undo' }
+  );
+  if (ok) await undoLast();
+}
+
+async function clearLockouts() {
+  if (!isHost()) return;
+  const active = Object.values(state.locks).filter((lock) => lock && (lock.until > Date.now() || lock.n > 0));
+  if (!active.length) {
+    toast('There are no active lockouts.', 'info');
+    return;
+  }
+  const ok = await confirmDialog(
+    'Clear lockouts',
+    'Reset every PIN and host-key attempt counter? This only removes wait times; it does not change players, PINs or targets.',
+    { okLabel: 'Clear lockouts' }
+  );
+  if (!ok) return;
+  const change = await applyChange((s) => {
+    s.locks = {};
+    return true;
+  }, { undoLabel: 'Clear lockouts' });
+  if (!change.ok) {
+    toast(change.error || 'Could not clear lockouts.', 'error');
+    return;
+  }
+  toast('Lockouts cleared.', 'ok');
+  render();
+}
+
+/* =========================================================
+   20. Player actions
+   ========================================================= */
+function formButton(form) {
+  return form ? form.querySelector('button[type="submit"]') : null;
+}
+
+function clearPinFields(form) {
+  if (!form) return;
+  for (const field of $$('[data-pin]', form)) field.value = '';
+}
+
+async function handleJoin(form) {
+  const err = $('#joinErr');
+  const player = byId(ui.selJoin);
+  if (!player) {
+    if (err) err.textContent = 'Select your name first.';
+    return;
+  }
+  if (state.phase === 'over') {
+    if (err) err.textContent = 'This round is over. Wait for the host to start a new one.';
+    return;
+  }
+
+  const codeField = $('#joinCode', form);
+  const pins = $$('[data-pin]', form);
+  const pin = pins[0] ? pins[0].value.trim() : '';
+  const confirm = pins[1] ? pins[1].value.trim() : '';
+  if (err) err.textContent = '';
+
+  await runBusy(formButton(form), 'Registering…', async () => {
+    const result = await registerPin(player, pin, confirm, codeField ? codeField.value : '');
+    if (!result.ok) {
+      if (err) err.textContent = result.err;
+      clearPinFields(form);
+      const firstPin = $('#joinPin', form);
+      if (firstPin) firstPin.focus();
+      return;
+    }
+
+    ui.stage = 'app';
+    ui.role = 'player';
+    ui.me = result.player.id;
+    saveSession();
+    ui.selJoin = '';
+    ui.tab = defaultPlayerTab();
+    ui.focusView = true;
+    toast('PIN registered. Keep it private.', 'ok');
+    render();
+  });
+}
+
+async function handleReveal(form) {
+  const err = $('#revealErr');
+  const player = byId(ui.selReveal);
+  if (!player) {
+    if (err) err.textContent = 'Select your name first.';
+    return;
+  }
+  if (state.phase !== 'playing') {
+    if (err) err.textContent = 'The round is not running.';
+    return;
+  }
+  if (player.status !== 'alive') {
+    if (err) err.textContent = 'Only players still in the game can reveal a target.';
+    return;
+  }
+
+  const pinField = $('#revealPin', form);
+  const pin = pinField ? pinField.value.trim() : '';
+  if (err) err.textContent = '';
+  const button = formButton(form);
+
+  await runBusy(button, 'Checking…', async () => {
+    const result = await checkPin(player, pin);
+    if (!result.ok) {
+      if (err) err.textContent = result.err;
+      if (pinField) {
+        pinField.value = '';
+        pinField.focus();
+      }
+      return;
+    }
+
+    const me = result.player;
+    const target = byId(me.target);
+    if (!target || me.status !== 'alive' || state.phase !== 'playing') {
+      if (err) err.textContent = 'Your assignment is unavailable. Ask the host to check the game.';
+      return;
+    }
+
+    ui.me = me.id;
+    ui.selReveal = String(me.id);
+    saveSession();
+    if (pinField) pinField.value = '';
+    if (err) err.textContent = '';
+    if (button) button.dataset.lock = '1';
+
+    startSecret(`
+      <div class="secret-kicker">Your target</div>
+      <div class="secret-name">${esc(target.name)}</div>
+      <p class="secret-sub">This hides automatically. Do not let anyone else see it.</p>`,
+    REVEAL_SECS, () => {
+      if (button && button.isConnected) {
+        delete button.dataset.lock;
+        button.disabled = false;
+      }
+      const again = $('#revealPin');
+      if (again) again.focus();
+      toast('Target hidden.', 'info', 2200);
+      flushPendingSync();
+    });
+  });
+}
+
+async function handleElim(form) {
+  const err = $('#elimErr');
+  const hunter = byId(ui.selHunter);
+  const victim = byId(ui.selVictim);
+  if (!hunter) {
+    if (err) err.textContent = 'Select the assassin first.';
+    return;
+  }
+  if (!victim) {
+    if (err) err.textContent = 'Select who was eliminated.';
+    return;
+  }
+  if (hunter.id === victim.id) {
+    if (err) err.textContent = 'Choose two different players.';
+    return;
+  }
+  if (state.phase !== 'playing') {
+    if (err) err.textContent = 'The round is not running.';
+    return;
+  }
+  if (hunter.status !== 'alive' || victim.status !== 'alive') {
+    if (err) err.textContent = 'Both players must still be in the game.';
+    return;
+  }
+
+  const pinField = $('#elimPin', form);
+  const pin = pinField ? pinField.value.trim() : '';
+  if (err) err.textContent = '';
+  const button = formButton(form);
+
+  await runBusy(button, 'Confirming…', async () => {
+    const result = await checkPin(hunter, pin);
+    if (!result.ok) {
+      if (err) err.textContent = result.err;
+      if (pinField) {
+        pinField.value = '';
+        pinField.focus();
+      }
+      return;
+    }
+
+    const H = result.player;
+    const V = byId(victim.id);
+    if (!V || V.status !== 'alive' || H.status !== 'alive' || H.target !== V.id) {
+      if (err) {
+        err.textContent = `${H.name} is not currently hunting ${V ? V.name : 'that player'}. Check the names.`;
+      }
+      if (pinField) pinField.value = '';
+      return;
+    }
+
+    const change = await applyChange((s) => {
+      const a = s.players.find((p) => p.id === H.id);
+      const b = s.players.find((p) => p.id === V.id);
+      if (!a || !b || a.status !== 'alive' || b.status !== 'alive' || a.target !== b.id) return false;
+      a.target = b.target;
+      a.kills = (a.kills || 0) + 1;
+      b.status = 'out';
+      b.target = -1;
+      pushLog(s, `${a.name} eliminated ${b.name}`, 'kill');
+      if (alivePlayers(s).length <= 1) finishRound(s, 'last');
+      return true;
+    }, { undoLabel: `${H.name} eliminated ${V.name}` });
+
+    if (!change.ok) {
+      if (err) err.textContent = change.error || 'That elimination could not be saved. Refresh and check the status.';
+      return;
+    }
+
+    if (pinField) pinField.value = '';
+    if (err) err.textContent = '';
+    const left = alivePlayers().length;
+    if (button) button.dataset.lock = '1';
+
+    startSecret(`
+      <div class="secret-kicker">Elimination confirmed</div>
+      <div class="secret-name">${esc(V.name)}</div>
+      <p class="secret-sub">${left <= 1 ? 'You are the last one standing.' : 'You now inherit their target.'}</p>`,
+    6, () => {
+      if (button && button.isConnected) {
+        delete button.dataset.lock;
+        button.disabled = false;
+      }
+      ui.selVictim = '';
+      ui.tab = 'status';
+      ui.focusView = true;
+      render();
+    });
+  });
+}
+
+/* =========================================================
+   21. Delegated events
+   ========================================================= */
+function enterPlayer() {
+  ui.stage = 'app';
+  ui.role = 'player';
+  if (ui.me && !byId(ui.me)) {
+    ui.me = null;
+    clearSession();
+  }
+  if (ui.me) saveSession();
+  ui.tab = defaultPlayerTab();
+  ui.focusView = true;
+  render();
+}
+
+function togglePin(act) {
+  const input = document.getElementById(act.dataset.target || '');
+  if (!input) return;
+  const show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+  act.textContent = show ? 'Hide' : 'Show';
+  act.setAttribute('aria-pressed', show ? 'true' : 'false');
+  input.focus();
+  if (show) {
+    const end = input.value.length;
+    try { input.setSelectionRange(end, end); } catch { /* ignore */ }
+  }
+}
+
+function onViewClick(event) {
+  const go = event.target.closest('[data-go]');
+  if (go) {
+    const dest = go.dataset.go;
+    if (dest === 'host') {
+      ui.stage = 'hostkey';
+      ui.role = null;
+      ui.tab = null;
+      ui.focusSel = '#hostKey';
+      render();
+    } else if (dest === 'player') {
+      enterPlayer();
+    } else if (dest === 'continue') {
+      enterPlayer();
+    } else if (dest === 'landing') {
+      ui.stage = 'landing';
+      ui.role = null;
+      ui.tab = null;
+      render();
+    }
+    return;
+  }
+
+  const act = event.target.closest('[data-act]');
+  if (!act) return;
+  const id = Number(act.dataset.id);
+
+  switch (act.dataset.act) {
+    case 'toggle-pin': togglePin(act); break;
+    case 'hide-secret': endSecret(); break;
+    case 'generate': void startRound(false); break;
+    case 'newround': void startRound(true); break;
+    case 'endround': void endRound(); break;
+    case 'backsetup': void backToSetup(); break;
+    case 'clear': void clearPool(); break;
+    case 'export': exportBackup(); break;
+    case 'undo': void handleUndo(); break;
+    case 'unlockall': void clearLockouts(); break;
+    case 'reset': void resetGame(); break;
+    case 'rename': void renamePlayer(byId(id)); break;
+    case 'resetpin': void resetPlayerPin(byId(id)); break;
+    case 'remove': void removePlayer(byId(id)); break;
+    case 'join': void addToGame(byId(id)); break;
+    case 'exit': logout(); break;
+    case 'reload': window.location.reload(); break;
+    case 'goto': selectTab(act.dataset.tab || ''); break;
+    default: break;
+  }
+}
+
+function onNavClick(event) {
+  if (event.target.closest('[data-act="exit"]')) {
+    logout();
+    return;
+  }
+  const tab = event.target.closest('[data-tab]');
+  if (tab) selectTab(tab.dataset.tab);
+}
+
+function onSubmit(event) {
+  const form = event.target.closest('form[data-form]');
+  if (!form) return;
+  event.preventDefault();
+  if (ui.busy) return;
+  markActive();
+
+  switch (form.dataset.form) {
+    case 'hostkey':
+      void handleHostKey(form);
+      break;
+    case 'add': {
+      const input = $('#nameIn', form);
+      const value = input ? input.value : '';
+      if (input && value.trim()) input.value = '';
+      void addPlayers([value]);
+      break;
+    }
+    case 'bulk': {
+      const area = $('#bulkNames', form);
+      const names = area ? area.value.split(/\r?\n/) : [];
+      const before = state.players.length;
+      void addPlayers(names).then(() => {
+        if (area && state.players.length > before) area.value = '';
+      });
+      break;
+    }
+    case 'join':
+      void handleJoin(form);
+      break;
+    case 'reveal':
+      void handleReveal(form);
+      break;
+    case 'elim':
+      void handleElim(form);
+      break;
+    case 'roundclock':
+      void saveRoundStart(form);
+      break;
+    default:
+      break;
+  }
+}
+
+function onChange(event) {
+  const target = event.target;
+  const form = target.closest('form');
+  const err = form ? form.querySelector('.err') : null;
+  if (err) err.textContent = '';
+
+  if (target.id === 'joinWho') {
+    ui.selJoin = target.value;
+    refreshJoinFields();
+    return;
+  }
+  if (target.id === 'revealWho') {
+    ui.selReveal = target.value;
+    return;
+  }
+  if (target.id === 'elimHunter') {
+    ui.selHunter = target.value;
+    const select = $('#elimVictim');
+    if (select) {
+      const keep = select.value;
+      const options = alivePlayers().filter((p) => p.id !== Number(target.value));
+      ui.selVictim = options.some((p) => String(p.id) === keep) ? keep : '';
+      select.innerHTML = victimOptions(target.value);
+    }
+    return;
+  }
+  if (target.id === 'elimVictim') {
+    ui.selVictim = target.value;
+    return;
+  }
+  if (target.id === 'importFile') {
+    const file = target.files && target.files[0];
+    target.value = '';
+    if (file) void importBackup(file);
+  }
+}
+
+function onInput(event) {
+  const target = event.target;
+  if (!(target instanceof HTMLInputElement)) return;
+
+  if (target.hasAttribute('data-pin')) {
+    const digits = target.value.replace(/\D+/g, '').slice(0, MAX_PIN);
+    if (digits !== target.value) target.value = digits;
+  } else if (target.hasAttribute('data-code')) {
+    const raw = target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+    const formatted = raw.length > 4 ? `${raw.slice(0, 4)}-${raw.slice(4)}` : raw;
+    if (formatted !== target.value) target.value = formatted;
+  } else if (target.hasAttribute('data-round-start')) {
+    const wrap = target.closest('.field');
+    const preview = wrap ? wrap.querySelector('[data-round-end-preview]') : null;
+    const ts = new Date(target.value).getTime();
+    if (preview) preview.textContent = Number.isFinite(ts) ? fmtDateTime(ts + ROUND_MS) : 'invalid date';
+  }
+
+  const form = target.closest('form');
+  const err = form ? form.querySelector('.err') : null;
+  if (err) err.textContent = '';
+}
+
+function onGlobalKey(event) {
+  if (event.key !== 'Escape' || modalOpen()) return;
+  if (secret.timer) {
+    event.preventDefault();
+    endSecret();
+  }
+}
+
+/* =========================================================
+   22. Sync, idle lock and lifecycle
+   ========================================================= */
+function markActive() {
+  if (isHost() && ui.stage === 'app') {
+    ui.lastActive = Date.now();
+    ui.idleWarned = false;
+  }
+}
+
+function idleTick() {
+  if (!isHost() || ui.stage !== 'app') return;
+  const idle = Date.now() - (ui.lastActive || Date.now());
+  if (idle >= HOST_IDLE_MS) {
+    logout(`Host console locked after ${Math.round(HOST_IDLE_MS / 60000)} minutes of inactivity.`);
+    return;
+  }
+  const left = HOST_IDLE_MS - idle;
+  if (left <= HOST_WARN_MS && !ui.idleWarned) {
+    ui.idleWarned = true;
+    toast(`Host console locks in ${fmtSecs(Math.ceil(left / 1000))} unless you continue.`, 'warn', 7000);
+  }
+}
+
+function roundClockTick() {
+  if (ui.stage !== 'app' || !state.startedAt) return;
+  const ends = state.startedAt + ROUND_MS;
+  const left = ends - Date.now();
+  const text = roundClockText(state);
+  const fraction = state.phase === 'over' ? 0 : Math.max(0, Math.min(1, left / ROUND_MS));
+  for (const el of $$('[data-round-countdown]')) {
+    if (el.textContent !== text) el.textContent = text;
+  }
+  for (const bar of $$('[data-round-bar]')) {
+    bar.style.transform = `scaleX(${fraction})`;
+  }
+}
+
+function hostKeyTick() {
+  if (ui.stage !== 'hostkey') return;
+  const err = $('#hostErr');
+  if (!err) return;
+  const left = guard('host');
+  const button = $('#view form[data-form="hostkey"] button[type="submit"]');
+  if (button && !ui.busy) button.disabled = !!left;
+  if (left) {
+    err.textContent = `Locked. Try again in ${fmtSecs(left)}.`;
+  } else if (err.textContent.startsWith('Locked.')) {
+    err.textContent = '';
+  }
+}
+
+function announceSync() {
+  ui.pendingSync = false;
+  if (ui.stage === 'app') toast('Game updated on another device.', 'info', 3200);
+  render();
+}
+
+function flushPendingSync() {
+  if (!ui.pendingSync) return;
+  if (modalOpen() || secret.timer || ui.busy) return;
+  announceSync();
+}
+
+function onVisibility() {
+  if (document.visibilityState !== 'visible') return;
+  if (!isHost() || ui.stage !== 'app') return;
+  if (Date.now() - (ui.lastActive || 0) >= HOST_IDLE_MS) {
+    logout('Host console locked after inactivity.');
+  }
+}
+
+/* =========================================================
+   23. Boot
+   ========================================================= */
+function renderBootError(error) {
+  const nav = $('#tabs');
+  if (nav) nav.hidden = true;
+  const view = $('#view');
+  if (!view) return;
+  const message = error && error.message ? error.message : String(error || 'Unknown error');
+  view.innerHTML = `
+    <section class="card">
+      <h2>Connection required</h2>
+      <p class="muted">This shared game needs Supabase. Fill in the two placeholders near the top of the file, run the SQL setup, then reload.</p>
+      <div class="callout callout-danger">${esc(message)}</div>
+      <div class="row" style="margin-top:14px">
+        <button type="button" class="btn btn-primary" data-act="reload">Reload</button>
+      </div>
+    </section>`;
+}
+
+async function init() {
+  const nav = $('#tabs');
+  const view = $('#view');
+  if (!nav || !view) return;
+
+  nav.addEventListener('click', onNavClick);
+  view.addEventListener('click', onViewClick);
+  view.addEventListener('submit', onSubmit);
+  view.addEventListener('change', onChange);
+  view.addEventListener('input', onInput);
+  document.addEventListener('keydown', onGlobalKey);
+  document.addEventListener('keydown', markActive);
+  document.addEventListener('pointerdown', markActive, { passive: true });
+  document.addEventListener('visibilitychange', onVisibility);
+
+  try {
+    sb = createSupabaseClient();
+    remoteReady = true;
+    await bootstrapRemote();
+  } catch (error) {
+    console.error(error);
+    renderBootError(error);
+    return;
+  }
+
+  const sessionId = readSession();
+  if (sessionId && byId(sessionId)) ui.me = sessionId;
+  else if (sessionId) clearSession();
+
+  if (importedLegacy) {
+    importedLegacy = false;
+    toast('Your saved game was imported from this device into Supabase.', 'ok', 6000);
+  }
+
+  subscribeRemote();
+  const latest = await fetchRemoteState();
+  if (latest && latest.rev > (state.rev || 0)) adoptRemote(latest, true);
+
+  window.setInterval(() => {
+    idleTick();
+    hostKeyTick();
+    roundClockTick();
+    flushPendingSync();
+  }, 1000);
+
+  render();
+}
+
+void init();
+})();
+
+
+
+
+
+
+</script>
+</body>
+</html>
