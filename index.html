@@ -41,23 +41,33 @@ body::before{
   content:""; position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.05;
   background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/></filter><rect width='140' height='140' filter='url(%23n)'/></svg>");
 }
+body::after{
+  content:""; position:fixed; inset:-30%; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(circle at 24% 28%,rgba(225,29,72,.16),transparent 38%),
+    radial-gradient(circle at 76% 68%,rgba(190,18,60,.14),transparent 40%),
+    radial-gradient(circle at 50% 88%,rgba(251,113,133,.07),transparent 34%);
+  filter:blur(18px); animation:ember-drift 22s ease-in-out infinite alternate;
+}
 body.modal-open{overflow:hidden}
 .wrap{position:relative; z-index:1; max-width:780px; margin:0 auto; padding:36px 18px 88px; padding-bottom:calc(88px + env(safe-area-inset-bottom))}
 .masthead{text-align:center; margin-bottom:26px}
-.eyebrow{font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.42em; color:var(--blood); text-transform:uppercase}
-.title{margin:8px 0 0; font-size:clamp(2rem,8vw,3.1rem); line-height:1.02; font-weight:900; letter-spacing:-.045em; color:#fff; text-shadow:0 0 30px rgba(225,29,72,.55)}
+.eyebrow{font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.42em; color:var(--blood); text-transform:uppercase; animation:eyebrow-pulse 3.2s ease-in-out infinite}
+.eyebrow::after{content:"_"; animation:blink 1.15s steps(2,start) infinite}
+.title{margin:8px 0 0; font-size:clamp(2rem,8vw,3.1rem); line-height:1.02; font-weight:900; letter-spacing:-.045em; color:#fff; text-shadow:0 0 30px rgba(225,29,72,.55); animation:title-glow 6s ease-in-out infinite}
 .lede{margin:10px auto 0; max-width:34rem; color:var(--muted); font-size:14px}
 .tabs{display:flex; align-items:stretch; gap:2px; overflow-x:auto; scrollbar-width:none; border-bottom:1px solid var(--line); margin-bottom:20px}
 .tabs::-webkit-scrollbar{display:none}
 .tabs[hidden]{display:none}
-.tab{appearance:none; background:none; border:0; border-bottom:2px solid transparent; color:var(--dim); font:inherit; font-size:13.5px; font-weight:700; padding:12px 14px; cursor:pointer; white-space:nowrap; transition:color .15s,border-color .15s}
+.tab{appearance:none; background:none; border:0; border-bottom:2px solid transparent; color:var(--dim); font:inherit; font-size:13.5px; font-weight:700; padding:12px 14px; cursor:pointer; white-space:nowrap; transition:color .15s,border-color .15s,text-shadow .2s}
 .tab:hover{color:#d7d7e2}
-.tab[aria-current="page"]{color:#fff; border-bottom-color:var(--blood)}
+.tab[aria-current="page"]{color:#fff; border-bottom-color:var(--blood); text-shadow:0 0 16px rgba(251,113,133,.5); animation:tab-glow 2.8s ease-in-out infinite}
 .tab:focus-visible{outline:2px solid var(--blood-3); outline-offset:-3px; border-radius:8px}
 .tab-spacer{flex:1}
 .tab-exit{appearance:none; background:none; border:0; color:var(--dim); font:inherit; font-size:12px; font-weight:600; padding:8px 6px 8px 14px; cursor:pointer; white-space:nowrap; align-self:center}
 .tab-exit:hover{color:var(--blood-3)}
-.card{background:linear-gradient(180deg,rgba(23,23,32,.94),rgba(13,13,19,.94)); border:1px solid var(--line); border-radius:var(--radius); padding:20px; box-shadow:var(--shadow)}
+.card{background:linear-gradient(180deg,rgba(23,23,32,.94),rgba(13,13,19,.94)); border:1px solid var(--line); border-radius:var(--radius); padding:20px; box-shadow:var(--shadow); transition:transform .25s var(--ease),border-color .25s,box-shadow .25s}
+.card:hover{border-color:#4a1a2b; box-shadow:0 26px 76px -34px rgba(190,18,60,.65)}
 .card + .card, .stack > * + *{margin-top:14px}
 .card-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px}
 .card h2{margin:0; font-size:18px; font-weight:800; color:#fff; letter-spacing:-.01em}
@@ -88,7 +98,9 @@ input[type="file"]{position:absolute; width:1px; height:1px; opacity:0; pointer-
 .btn:active:not(:disabled){transform:translateY(0)}
 .btn:focus-visible{outline:2px solid var(--blood-3); outline-offset:2px}
 .btn:disabled{opacity:.42; cursor:not-allowed; transform:none}
-.btn-primary{background:linear-gradient(180deg,#f43f5e,#e11d48); color:#fff; box-shadow:0 10px 28px -14px rgba(225,29,72,.95)}
+.btn-primary{position:relative; overflow:hidden; background:linear-gradient(110deg,#f43f5e,#be123c,#f43f5e); background-size:200% 100%; color:#fff; box-shadow:0 10px 28px -14px rgba(225,29,72,.95); animation:button-sheen 7s ease infinite}
+.btn-primary::before{content:""; position:absolute; inset:0; pointer-events:none; background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.2) 48%,transparent 64%); transform:translateX(-130%); transition:transform .65s var(--ease)}
+.btn-primary:hover:not(:disabled)::before{transform:translateX(130%)}
 .btn-primary:hover:not(:disabled){background:linear-gradient(180deg,#fb7185,#e11d48)}
 .btn-ghost{background:#15151d; border-color:#2b2b3a; color:#d7d7e2}
 .btn-ghost:hover:not(:disabled){border-color:var(--blood); color:#fff}
@@ -105,10 +117,10 @@ input[type="file"]{position:absolute; width:1px; height:1px; opacity:0; pointer-
 .pill-ok{color:#6ee7b7; border-color:#14532d; background:#052e1f}
 .pill-warn{color:#fcd34d; border-color:#713f12; background:#2a1c04}
 .pill-out{color:#a1a1b5; border-color:#333345; background:#14141d}
-.pill-blood{color:#fda4af; border-color:#7f1d2e; background:#2a0f18}
+.pill-blood{color:#fda4af; border-color:#7f1d2e; background:#2a0f18; animation:pill-pulse 3s ease-in-out infinite}
 .pill-mono{font-family:var(--mono); font-weight:600}
 .dot{display:inline-block; flex:none; width:8px; height:8px; border-radius:50%; background:var(--out)}
-.dot-alive{background:var(--ok); box-shadow:0 0 8px rgba(52,211,153,.55)}
+.dot-alive{background:var(--ok); box-shadow:0 0 8px rgba(52,211,153,.55); animation:dot-pulse 2.4s ease-in-out infinite}
 .dot-waiting{background:var(--warn)}
 .dot-out{background:#4b4b5c}
 .stats{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:16px}
@@ -129,7 +141,7 @@ input[type="file"]{position:absolute; width:1px; height:1px; opacity:0; pointer-
 .callout-ok{border-color:#14532d; background:#052015; color:#a7f3d0}
 .callout-warn{border-color:#713f12; background:#201503; color:#fde68a}
 .callout-danger{border-color:#7f1d2e; background:#250b13; color:#fecdd3}
-.secret-panel{margin-top:20px; padding:22px 18px; border:1px solid rgba(225,29,72,.6); border-radius:16px; background:linear-gradient(180deg,rgba(225,29,72,.16),rgba(225,29,72,.045)); text-align:center; box-shadow:0 0 50px -18px rgba(225,29,72,.8); animation:secret-in .18s ease-out}
+.secret-panel{margin-top:20px; padding:22px 18px; border:1px solid rgba(225,29,72,.6); border-radius:16px; background:linear-gradient(180deg,rgba(225,29,72,.16),rgba(225,29,72,.045)); text-align:center; box-shadow:0 0 50px -18px rgba(225,29,72,.8); animation:secret-in .18s ease-out,secret-glow 2.8s ease-in-out .18s infinite}
 .secret-kicker{font-family:var(--mono); font-size:10.5px; font-weight:700; letter-spacing:.3em; color:var(--blood-3); text-transform:uppercase}
 .secret-name{margin-top:6px; color:#fff; font-size:clamp(1.9rem,7vw,2.7rem); font-weight:900; line-height:1.08; letter-spacing:-.03em; overflow-wrap:anywhere}
 .secret-sub{margin-top:6px; color:#fecdd3; font-size:12.5px}
@@ -141,7 +153,7 @@ input[type="file"]{position:absolute; width:1px; height:1px; opacity:0; pointer-
 .hidden-note{margin:18px 0 0; text-align:center; color:var(--dim); font-size:12px}
 .choice-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px}
 .choice{appearance:none; text-align:left; cursor:pointer; font:inherit; color:var(--ink); transition:border-color .15s,transform .15s}
-.choice:hover{border-color:var(--blood); transform:translateY(-2px)}
+.choice:hover{border-color:var(--blood); transform:translateY(-2px); box-shadow:0 18px 44px -28px rgba(225,29,72,.9)}
 .choice:focus-visible{outline:2px solid var(--blood-3); outline-offset:2px}
 .choice-kicker{font-family:var(--mono); font-size:10px; font-weight:700; letter-spacing:.28em; color:var(--blood); text-transform:uppercase}
 .choice-kicker.open{color:var(--dim)}
@@ -159,7 +171,7 @@ input[type="file"]{position:absolute; width:1px; height:1px; opacity:0; pointer-
 .feed-item.host .feed-icon{color:var(--warn)}
 .feed-item.win .feed-icon{color:var(--warn)}
 .feed-item.round .feed-icon{color:var(--muted)}
-.winner{margin-top:16px; padding:18px; border:1px solid rgba(251,191,36,.45); border-radius:14px; background:linear-gradient(180deg,rgba(251,191,36,.12),rgba(251,191,36,.03)); text-align:center}
+.winner{margin-top:16px; padding:18px; border:1px solid rgba(251,191,36,.45); border-radius:14px; background:linear-gradient(180deg,rgba(251,191,36,.12),rgba(251,191,36,.03)); text-align:center; animation:winner-glow 3s ease-in-out infinite}
 .winner-kicker{font-family:var(--mono); font-size:10.5px; font-weight:700; letter-spacing:.3em; color:var(--warn); text-transform:uppercase}
 .winner-name{margin-top:4px; color:#fff; font-size:clamp(1.6rem,6vw,2.3rem); font-weight:900; line-height:1.1; letter-spacing:-.02em; overflow-wrap:anywhere}
 .round-clock{margin-top:14px; padding:14px; border:1px solid #242432; border-radius:14px; background:#0b0b12}
@@ -167,7 +179,7 @@ input[type="file"]{position:absolute; width:1px; height:1px; opacity:0; pointer-
 .clock-label{color:var(--muted); font-size:10.5px; font-weight:750; letter-spacing:.1em; text-transform:uppercase}
 .clock-left{margin-top:2px; color:#fff; font-size:21px; font-weight:900; line-height:1.2; letter-spacing:-.02em}
 .round-track{height:6px; margin-top:11px; border-radius:99px; background:#23232f; overflow:hidden}
-.round-track span{display:block; width:100%; height:100%; border-radius:99px; background:linear-gradient(90deg,#fb7185,#e11d48); transform-origin:left center; transition:transform .3s linear}
+.round-track span{display:block; width:100%; height:100%; border-radius:99px; background:linear-gradient(90deg,#fb7185,#e11d48,#fb7185); background-size:200% 100%; transform-origin:left center; transition:transform .3s linear; animation:track-flow 3.5s linear infinite}
 .clock-meta{display:flex; flex-wrap:wrap; gap:5px 16px; margin-top:9px; color:var(--dim); font-size:11px}
 .clock-meta b{color:var(--muted); font-weight:650}
 .history{display:grid; gap:9px; margin-top:14px}
@@ -199,12 +211,12 @@ input[type="file"]{position:absolute; width:1px; height:1px; opacity:0; pointer-
 .code-row span{color:var(--muted); overflow-wrap:anywhere}
 .code-row code{flex:none; color:var(--blood-3); font-weight:700; letter-spacing:.04em}
 .toast-stack{position:fixed; left:50%; bottom:calc(18px + env(safe-area-inset-bottom)); z-index:1000; transform:translateX(-50%); width:min(430px,calc(100vw - 24px)); display:grid; gap:8px; pointer-events:none}
-.toast{pointer-events:auto; padding:10px 14px; border:1px solid #2b2b3a; border-left:3px solid var(--dim); border-radius:10px; background:#15151f; color:#e6e6ee; font-size:13px; line-height:1.45; box-shadow:0 18px 50px -20px #000; cursor:pointer; animation:toast-in .2s var(--ease); overflow-wrap:anywhere}
+.toast{pointer-events:auto; padding:10px 14px; border:1px solid #2b2b3a; border-left:3px solid var(--dim); border-radius:10px; background:#15151f; color:#e6e6ee; font-size:13px; line-height:1.45; box-shadow:0 18px 50px -20px #000; cursor:pointer; animation:toast-in .2s var(--ease),toast-breathe 4s ease-in-out .2s infinite; overflow-wrap:anywhere}
 .toast-ok{border-left-color:var(--ok)}
 .toast-error{border-left-color:#f43f5e}
 .toast-warn{border-left-color:var(--warn)}
 .toast-out{opacity:0; transform:translateY(8px); transition:opacity .2s,transform .2s}
-.modal{width:min(440px,calc(100vw - 32px)); max-height:min(88dvh,760px); padding:0; border:1px solid #343445; border-radius:20px; background:#111118; color:var(--ink); box-shadow:0 40px 120px -30px #000; overflow:auto}
+.modal{width:min(440px,calc(100vw - 32px)); max-height:min(88dvh,760px); padding:0; border:1px solid #343445; border-radius:20px; background:#111118; color:var(--ink); box-shadow:0 40px 120px -30px #000,0 0 60px -30px rgba(225,29,72,.7); overflow:auto; animation:modal-in .22s var(--ease)}
 .modal::backdrop{background:rgba(3,3,6,.76); backdrop-filter:blur(3px)}
 .modal-panel{padding:22px}
 .modal-title{margin:0 0 8px; color:#fff; font-size:17px; font-weight:800; line-height:1.3}
@@ -226,6 +238,50 @@ input[type="file"]{position:absolute; width:1px; height:1px; opacity:0; pointer-
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes secret-in{from{opacity:0; transform:scale(.985)}to{opacity:1; transform:scale(1)}}
 @keyframes toast-in{from{opacity:0; transform:translateY(8px)}to{opacity:1; transform:translateY(0)}}
+@keyframes ember-drift{
+  0%{transform:translate3d(-2%,1%,0) scale(1)}
+  50%{transform:translate3d(3%,-2%,0) scale(1.06)}
+  100%{transform:translate3d(-1%,3%,0) scale(1.02)}
+}
+@keyframes eyebrow-pulse{
+  0%,100%{opacity:.72; text-shadow:0 0 8px rgba(225,29,72,.5)}
+  50%{opacity:1; text-shadow:0 0 18px rgba(251,113,133,.85)}
+}
+@keyframes blink{50%{opacity:0}}
+@keyframes title-glow{
+  0%,100%{text-shadow:0 0 30px rgba(225,29,72,.45)}
+  50%{text-shadow:0 0 42px rgba(225,29,72,.75),0 0 90px rgba(190,18,60,.25)}
+}
+@keyframes tab-glow{
+  0%,100%{border-bottom-color:var(--blood)}
+  50%{border-bottom-color:var(--blood-3)}
+}
+@keyframes pill-pulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(225,29,72,0)}
+  50%{box-shadow:0 0 14px -2px rgba(225,29,72,.45)}
+}
+@keyframes dot-pulse{
+  0%,100%{box-shadow:0 0 6px rgba(52,211,153,.45)}
+  50%{box-shadow:0 0 14px rgba(52,211,153,.9)}
+}
+@keyframes button-sheen{
+  0%,100%{background-position:0% 50%}
+  50%{background-position:100% 50%}
+}
+@keyframes track-flow{to{background-position:200% 0}}
+@keyframes secret-glow{
+  0%,100%{box-shadow:0 0 50px -18px rgba(225,29,72,.8)}
+  50%{box-shadow:0 0 70px -14px rgba(225,29,72,1)}
+}
+@keyframes winner-glow{
+  0%,100%{box-shadow:0 0 0 0 rgba(251,191,36,0)}
+  50%{box-shadow:0 0 32px -10px rgba(251,191,36,.5)}
+}
+@keyframes toast-breathe{
+  0%,100%{box-shadow:0 18px 50px -20px #000}
+  50%{box-shadow:0 18px 56px -18px rgba(225,29,72,.35)}
+}
+@keyframes modal-in{from{opacity:0; transform:translateY(10px) scale(.985)}to{opacity:1; transform:translateY(0) scale(1)}}
 @media (max-width:600px){
   .wrap{padding-top:28px}
   .choice-grid{grid-template-columns:1fr}
@@ -292,13 +348,9 @@ const STATE_ROW_ID    = 1;
 const SCHEMA          = 4;
 const APP_VERSION     = '5.0';
 
-/* Only a salted PBKDF2-SHA256 hash of the host key lives in this file. */
-const HOST_SALT   = 'senior-assassin/host/v1';
+/* The master key hash is created on first use and stored in shared state. */
 const HOST_ITER   = 200000;
-const HOST_HASHES = [
-  'f9ffbf4415a92f278ec3da699b4f85aa1127ad0fb7f36e549196fce64bfdd9df',
-  '95555a8778bfd2fdb673c00a08c3f84245505fb94ecb5497fdb26014320d500c'
-];
+const HOST_KEY_MIN = 4;
 
 /* New credentials use 150k iterations; older saved PINs keep their recorded count. */
 const PIN_ITER        = 150000;
@@ -475,7 +527,8 @@ function blankState() {
     log: [],
     history: [],
     audit: [],
-    locks: {}
+    locks: {},
+    hostKey: null
   };
 }
 
@@ -492,6 +545,12 @@ function normalizeCredential(raw) {
 
 function makeCredentialRecord(salt, hash, iter) {
   return { salt, hash, iter };
+}
+
+async function hostKeyCredential(value) {
+  const salt = hex(randomBytes(16));
+  const hash = await kdf(value, salt, HOST_ITER);
+  return makeCredentialRecord(salt, hash, HOST_ITER);
 }
 
 function normalizeLogType(value, text) {
@@ -660,6 +719,7 @@ function normalizeState(raw) {
   s.history = normalizeHistory(raw.history);
   s.audit = normalizeEntries(raw.audit, 200);
   s.locks = normalizeLocks(raw.locks);
+  s.hostKey = normalizeCredential(raw.hostKey);
 
   /* Backfill one history entry for a round that ended before history existed. */
   if (s.phase === 'over' && s.round > 0 && s.startedAt > 0) {
@@ -1677,7 +1737,7 @@ function viewLanding() {
       <button type="button" class="card choice" data-go="host">
         <div class="choice-kicker">Restricted</div>
         <div class="choice-title">Host</div>
-        <p class="choice-text">Run the roster, start the round, and manage PIN resets. Requires the master key.</p>
+        <p class="choice-text">Run the roster, start the round, and manage PIN resets. Create the master key on first use.</p>
       </button>
       <button type="button" class="card choice" data-go="player">
         <div class="choice-kicker open">Open</div>
@@ -1691,10 +1751,42 @@ function viewLanding() {
 
 function viewHostKey() {
   const left = guard('host');
+  if (!state.hostKey) {
+    $('#view').innerHTML = `
+      <section class="card">
+        <div class="card-head">
+          <h2>Create master key</h2>
+          <span class="pill pill-blood">First run</span>
+        </div>
+        <p class="muted">Choose the master key now. Only its hash is saved in the shared game, and it will be required to unlock the host console on every device.</p>
+        <form data-form="hostsetup" autocomplete="off">
+          <label class="label" for="hostKeyNew">New master key</label>
+          <div class="input-group">
+            <input id="hostKeyNew" class="input" type="password" maxlength="200" autocomplete="new-password"
+              autocapitalize="off" spellcheck="false" placeholder="New master key">
+            <button type="button" class="btn btn-ghost" data-act="toggle-pin" data-target="hostKeyNew">Show</button>
+          </div>
+          <label class="label" for="hostKeyConfirm" style="margin-top:12px">Confirm master key</label>
+          <div class="input-group">
+            <input id="hostKeyConfirm" class="input" type="password" maxlength="200" autocomplete="new-password"
+              autocapitalize="off" spellcheck="false" placeholder="Repeat master key">
+            <button type="button" class="btn btn-ghost" data-act="toggle-pin" data-target="hostKeyConfirm">Show</button>
+          </div>
+          <button class="btn btn-primary btn-block" type="submit" style="margin-top:14px" ${left ? 'disabled' : ''}>Create key &amp; unlock</button>
+          <p class="err" id="hostErr" role="alert">${left ? `Locked. Try again in ${fmtSecs(left)}.` : ''}</p>
+        </form>
+        <button type="button" class="link" data-go="landing" style="margin-top:8px">← Back</button>
+        <div class="callout callout-warn">Save this key somewhere safe. It is not stored in plain text and cannot be recovered after a reset.</div>
+      </section>`;
+    const field = $('#hostKeyNew');
+    if (field) field.focus();
+    return;
+  }
+
   $('#view').innerHTML = `
     <section class="card">
       <h2>Host access</h2>
-      <p class="muted">Enter the master key to manage the player pool and generate assignments.</p>
+      <p class="muted">Enter the master key created when this game was set up.</p>
       <form data-form="hostkey" autocomplete="off">
         <label class="label" for="hostKey">Master key</label>
         <div class="input-group">
@@ -1814,6 +1906,7 @@ function viewRoster() {
         <div class="field">${roundStartField(Date.now(), 'Next round start date & time')}</div>
         <div class="row" style="margin-top:16px">
           <button type="button" class="btn btn-primary" data-act="newround" ${canNewRound ? '' : 'disabled'}>New round</button>
+          <button type="button" class="btn btn-ghost" data-act="resetround">Reset round progress</button>
           <button type="button" class="btn btn-ghost" data-act="backsetup">Edit roster</button>
         </div>
         <p class="hint">${canNewRound
@@ -1844,9 +1937,10 @@ function viewRoster() {
       </form>
       <div class="row" style="margin-top:16px">
         <button type="button" class="btn btn-danger" data-act="endround">End round</button>
+        <button type="button" class="btn btn-ghost" data-act="resetround">Reset round progress</button>
         <button type="button" class="btn btn-ghost" data-act="reset">Reset everything</button>
       </div>
-      <p class="hint">Ending early records the current leader as the winner. A tie ends the round without a winner.</p>
+      <p class="hint">Resetting round progress keeps the round number, start time, roster, PINs, and history, but reshuffles everyone from scratch.</p>
     </section>` : '';
 
   $('#view').innerHTML = `
@@ -2263,6 +2357,93 @@ async function runBusy(button, label, work) {
 /* =========================================================
    19. Host actions
    ========================================================= */
+function enterHostConsole(message = 'Host console unlocked.') {
+  clearSession();
+  ui.stage = 'app';
+  ui.role = 'host';
+  ui.tab = 'roster';
+  ui.me = null;
+  ui.lastActive = Date.now();
+  ui.idleWarned = false;
+  toast(message, 'ok');
+  render();
+}
+
+async function clearHostLockout() {
+  try {
+    if (state.locks.host) await succeed('host');
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+async function handleHostSetup(form) {
+  const input = $('#hostKeyNew', form) || $('#hostKeyNew');
+  const confirm = $('#hostKeyConfirm', form) || $('#hostKeyConfirm');
+  const err = $('#hostErr');
+  const value = input ? input.value.trim() : '';
+  const repeated = confirm ? confirm.value.trim() : '';
+  const left = guard('host');
+
+  if (left) {
+    if (err) err.textContent = `Too many attempts. Try again in ${fmtSecs(left)}.`;
+    return;
+  }
+  if (state.hostKey) {
+    toast('A master key already exists. Use it to unlock.', 'info');
+    render();
+    return;
+  }
+  if (value.length < HOST_KEY_MIN) {
+    if (err) err.textContent = `Use at least ${HOST_KEY_MIN} characters.`;
+    if (input) input.focus();
+    return;
+  }
+  if (value !== repeated) {
+    if (err) err.textContent = 'The master keys do not match.';
+    if (confirm) confirm.focus();
+    return;
+  }
+  if (!HAS_CRYPTO) {
+    if (err) err.textContent = 'Web Crypto is unavailable. Serve the page over https:// or localhost.';
+    return;
+  }
+
+  const button = form.querySelector('button[type="submit"]');
+  await runBusy(button, 'Saving…', async () => {
+    let credential = null;
+    try {
+      credential = await hostKeyCredential(value);
+    } catch (error) {
+      console.error(error);
+      if (err) err.textContent = 'Could not create the master key on this device.';
+      return;
+    }
+
+    const change = await applyChange((s) => {
+      if (s.hostKey) return false;
+      s.hostKey = credential;
+      pushAudit(s, 'Master key created');
+      return true;
+    });
+
+    if (!change.ok) {
+      if (change.canceled) {
+        toast('A master key was created on another device. Use it to unlock.', 'info');
+        render();
+        return;
+      }
+      if (err) err.textContent = change.error || 'Could not save the master key.';
+      return;
+    }
+
+    if (input) input.value = '';
+    if (confirm) confirm.value = '';
+    await clearHostLockout();
+    enterHostConsole('Master key created. Host console unlocked.');
+  });
+}
+
 async function handleHostKey(form) {
   const input = $('#hostKey', form) || $('#hostKey');
   const err = $('#hostErr');
@@ -2270,6 +2451,11 @@ async function handleHostKey(form) {
   const left = guard('host');
   if (left) {
     if (err) err.textContent = `Too many attempts. Try again in ${fmtSecs(left)}.`;
+    return;
+  }
+  if (!state.hostKey) {
+    toast('Create a master key before unlocking the host console.', 'info');
+    render();
     return;
   }
   if (!value) {
@@ -2284,18 +2470,12 @@ async function handleHostKey(form) {
 
   const button = form.querySelector('button[type="submit"]');
   await runBusy(button, 'Checking…', async () => {
-    const hash = await kdf(value, HOST_SALT, HOST_ITER);
-    if (HOST_HASHES.some((known) => eq(hash, known))) {
-      await succeed('host');
-      clearSession();
-      ui.stage = 'app';
-      ui.role = 'host';
-      ui.tab = 'roster';
-      ui.me = null;
-      ui.lastActive = Date.now();
-      ui.idleWarned = false;
-      toast('Host console unlocked.', 'ok');
-      render();
+    const credential = state.hostKey;
+    const hash = await kdf(value, credential.salt, credential.iter || HOST_ITER);
+    if (eq(hash, credential.hash)) {
+      if (input) input.value = '';
+      await clearHostLockout();
+      enterHostConsole();
       return;
     }
     await fail('host');
@@ -2738,26 +2918,149 @@ async function clearPool() {
   render();
 }
 
+async function hardResetRemote() {
+  if (!remoteReady) throw new Error('The shared game is not connected yet. Reload and try again.');
+
+  /* Direct unconditional write: this must work even if local rev drifted. */
+  const fresh = await fetchRemoteState();
+  const blank = blankState();
+  blank.rev = Math.max(0, num(fresh && fresh.rev), num(state.rev)) + 1;
+  blank.updatedAt = Date.now();
+  const stamp = new Date(blank.updatedAt).toISOString();
+  const payload = { rev: blank.rev, data: blank, updated_at: stamp };
+
+  const { data, error } = await sb
+    .from(STATE_TABLE)
+    .update(payload, { count: 'exact' })
+    .eq('id', STATE_ROW_ID)
+    .select('id');
+  if (error) throw error;
+  if (data && data.length) return blank;
+
+  const { error: insertError } = await sb
+    .from(STATE_TABLE)
+    .insert({ id: STATE_ROW_ID, rev: blank.rev, data: blank, updated_at: stamp });
+  if (insertError && insertError.code !== '23505') throw insertError;
+
+  if (insertError) {
+    const retry = await sb
+      .from(STATE_TABLE)
+      .update(payload, { count: 'exact' })
+      .eq('id', STATE_ROW_ID)
+      .select('id');
+    if (retry.error) throw retry.error;
+    if (!retry.data || !retry.data.length) {
+      throw new Error('Could not reset the shared game. Reload and try again.');
+    }
+  }
+  return blank;
+}
+
+async function resetRoundProgress() {
+  if (!isHost() || !['playing', 'over'].includes(state.phase)) return;
+  if (state.players.length < MIN_PLAYERS) {
+    toast(`Add at least ${MIN_PLAYERS} players first.`, 'warn');
+    return;
+  }
+  if (state.players.some((p) => !p.pin)) {
+    toast('Every player needs a PIN before the round can be reshuffled.', 'warn');
+    return;
+  }
+
+  const ok = await confirmDialog(
+    'Reset round progress',
+    `Reset the progress of round <b>${state.round || 1}</b>? Everyone becomes alive, eliminations and kills clear, and a fresh single-loop chain is generated.<br><br>The round number, start time, roster, PINs, and history stay exactly as they are.`,
+    { okLabel: 'Reset progress', danger: true }
+  );
+  if (!ok) return;
+
+  const change = await applyChange((s) => {
+    if (!['playing', 'over'].includes(s.phase)) return false;
+    const ids = s.players.map((p) => p.id);
+    if (ids.length < MIN_PLAYERS || ids.some((id) => !id)) return false;
+
+    let targetById = null;
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      const order = shuffle(ids);
+      const candidate = new Map(order.map((id, index) => [id, order[(index + 1) % order.length]]));
+      const draft = s.players.map((p) => ({
+        ...p, status: 'alive', target: candidate.get(p.id), kills: 0
+      }));
+      if (verifyChain(draft, true)) {
+        targetById = candidate;
+        break;
+      }
+    }
+    if (!targetById) return false;
+
+    s.phase = 'playing';
+    s.endedAt = 0;
+    s.log = [];
+    s.locks = {};
+    for (const p of s.players) {
+      p.status = 'alive';
+      p.target = targetById.get(p.id);
+      p.kills = 0;
+    }
+    pushLog(s, `Round ${s.round} restarted with fresh targets`, 'round');
+    pushAudit(s, `Round ${s.round} progress reset; ${s.players.length} players reshuffled`);
+    return true;
+  }, { undoLabel: 'Reset round progress' });
+
+  if (!change.ok) {
+    toast(change.error || 'Could not reset the round progress.', 'error');
+    return;
+  }
+  ui.selReveal = '';
+  ui.selHunter = '';
+  ui.selVictim = '';
+  ui.tab = 'status';
+  toast(`Round ${state.round || 1} is live again with new targets.`, 'ok');
+  render();
+}
+
 async function resetGame() {
   if (!isHost()) return;
-  const typed = await promptDialog('Reset game', 'Type ERASE to confirm', {
-    body: 'This removes all players, assignments, PINs, round history and logs for everyone. It cannot be undone.',
+  const typed = await promptDialog('Reset everything', 'Type ERASE to confirm', {
+    body: 'This removes all players, assignments, PINs, round count, history, logs, lockouts, and the master key for everyone. A new master key must be created after the reset. It cannot be undone.',
     okLabel: 'Erase everything',
     maxLength: 10,
     validate: (value) => value.trim().toUpperCase() === 'ERASE' ? null : 'Type ERASE in capitals to confirm.'
   });
   if (typed === null) return;
-  await replaceState(blankState());
+
+  let blank;
+  try {
+    blank = await hardResetRemote();
+  } catch (error) {
+    console.error(error);
+    toast(error && error.message ? error.message : 'Could not reset the shared game.', 'error', 7000);
+    return;
+  }
+
+  adoptRemote(blank, true);
+  try {
+    localStorage.removeItem(STORE_KEY);
+    localStorage.removeItem(LEGACY_KEY);
+    localStorage.removeItem('senior-assassin-locks-v4');
+  } catch { /* ignore */ }
+
+  closeModal();
+  cancelSecret();
   ui.undo = [];
   ui.me = null;
   ui.selReveal = '';
   ui.selHunter = '';
   ui.selVictim = '';
   ui.selJoin = '';
-  ui.tab = 'roster';
+  ui.tab = null;
+  ui.role = null;
+  ui.stage = 'hostkey';
+  ui.lastActive = Date.now();
+  ui.idleWarned = false;
   clearSession();
-  toast('Game reset.', 'ok');
   render();
+  toast('Everything reset. Create a new master key.', 'ok', 6000);
 }
 
 function exportBackup() {
@@ -3107,7 +3410,7 @@ function onViewClick(event) {
       ui.stage = 'hostkey';
       ui.role = null;
       ui.tab = null;
-      ui.focusSel = '#hostKey';
+      ui.focusSel = state.hostKey ? '#hostKey' : '#hostKeyNew';
       render();
     } else if (dest === 'player') {
       enterPlayer();
@@ -3132,6 +3435,7 @@ function onViewClick(event) {
     case 'generate': void startRound(false); break;
     case 'newround': void startRound(true); break;
     case 'endround': void endRound(); break;
+    case 'resetround': void resetRoundProgress(); break;
     case 'backsetup': void backToSetup(); break;
     case 'clear': void clearPool(); break;
     case 'export': exportBackup(); break;
@@ -3166,6 +3470,9 @@ function onSubmit(event) {
   markActive();
 
   switch (form.dataset.form) {
+    case 'hostsetup':
+      void handleHostSetup(form);
+      break;
     case 'hostkey':
       void handleHostKey(form);
       break;
@@ -3313,7 +3620,7 @@ function hostKeyTick() {
   const err = $('#hostErr');
   if (!err) return;
   const left = guard('host');
-  const button = $('#view form[data-form="hostkey"] button[type="submit"]');
+  const button = $('#view form[data-form="hostsetup"] button[type="submit"], #view form[data-form="hostkey"] button[type="submit"]');
   if (button && !ui.busy) button.disabled = !!left;
   if (left) {
     err.textContent = `Locked. Try again in ${fmtSecs(left)}.`;
